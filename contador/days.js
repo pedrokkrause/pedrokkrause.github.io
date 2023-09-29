@@ -1,15 +1,15 @@
 function dayMonthYearDifference(startDate, endDate){
     const oneDay = 1000 * 60 * 60 * 24;
-    
+	
     let days = Math.floor((endDate - startDate) / oneDay);
-
+	
     let years = Math.floor(days / 365.25);
     days -= years * 365.25;
-
+	
     let months = Math.floor(days / 30.4375);
     days -= months * 30.4375;
-
-	let days = Math.floor(days)
+	
+    days = Math.floor(days);
 	
     return {
         years,
