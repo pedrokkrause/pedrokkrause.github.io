@@ -1,1 +1,3 @@
 # pedrokkrause.github.io
+
+Aleatoriedades
