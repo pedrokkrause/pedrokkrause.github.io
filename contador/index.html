@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dias desde 12/04/2019</title>
+    <title>Contador</title>
     <style>
         body {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-size: 2em;
+            font-size: 1.5em;
             font-family: Arial, sans-serif;
         }
-
-        #days {
+        .highlight {
             color: #444;
         }
     </style>
 </head>
-
 <body>
-    <div id="days">0</div>
+    <p>Já se passam <span id="totalDays" class="highlight">0</span> dias desde 12/04/2019</p>
+    <p>Isso são <span id="years" class="highlight">0</span> anos, <span id="months" class="highlight">0</span> meses e <span id="days" class="highlight">0</span> dias.</p>
 
     <script src="days.js"></script>
 </body>
