@@ -1,5 +1,3 @@
-const startDate = new Date('2019-04-12T00:00:00'); 
-
 function dayMonthYearDifference(startDate, endDate){
     const oneDay = 1000 * 60 * 60 * 24;
     
@@ -20,7 +18,9 @@ function dayMonthYearDifference(startDate, endDate){
     };
 }
 
-setInterval(() => {
+const startDate = new Date('2019-04-12T00:00:00Z'); 
+
+function calculateAndDisplayTime() {
     const now = new Date();
     const totalDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
     const result = dayMonthYearDifference(startDate, now);
@@ -29,4 +29,10 @@ setInterval(() => {
     document.getElementById('years').textContent = result.years;
     document.getElementById('months').textContent = result.months;
     document.getElementById('days').textContent = result.days;
-}, 1000);
+}
+
+// Call the function initially to populate the values immediately
+calculateAndDisplayTime();
+
+// Then update every second
+setInterval(calculateAndDisplayTime, 1000);
