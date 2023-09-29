@@ -1,15 +1,32 @@
 const startDate = new Date('2019-04-12T00:00:00'); 
 
+function dayMonthYearDifference(startDate, endDate){
+    const oneDay = 1000 * 60 * 60 * 24;
+    
+    let days = Math.floor((endDate - startDate) / oneDay);
+
+    let years = Math.floor(days / 365.25);
+    days -= years * 365.25;
+
+    let months = Math.floor(days / 30.4375);
+    days -= months * 30.4375;
+
+	let days = Math.floor(days)
+	
+    return {
+        years,
+        months,
+        days
+    };
+}
+
 setInterval(() => {
     const now = new Date();
-    const differenceInTime = now.getTime() - startDate.getTime(); 
-    const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24)); 
-    const years = Math.floor(differenceInDays / 365);
-    const months = Math.floor((differenceInDays % 365) / 30);
-    const days = Math.floor((differenceInDays % 365) % 30);
+    const totalDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
+    const result = dayMonthYearDifference(startDate, now);
 
-    document.getElementById('totalDays').textContent = differenceInDays;
-    document.getElementById('years').textContent = years;
-    document.getElementById('months').textContent = months;
-    document.getElementById('days').textContent = days;
+    document.getElementById('totalDays').textContent = totalDays;
+    document.getElementById('years').textContent = result.years;
+    document.getElementById('months').textContent = result.months;
+    document.getElementById('days').textContent = result.days;
 }, 1000);
