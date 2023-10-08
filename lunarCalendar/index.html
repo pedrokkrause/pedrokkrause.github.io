@@ -35,27 +35,28 @@
 </head>
 <body>
     <div id="container">
-        <div id="date"></div>
         <div id="emoji" class="emoji"></div>
+        <div id="date"></div>
         <div id="moonBrightness"></div>
     </div>
     <script type="module">
         import { gregorian_to_lunar, moon_emoji, moon_brightness } from './main.js';
 
-        const dateSpan = document.getElementById('date');
         const emojiSpan = document.getElementById('emoji');
+        const dateSpan = document.getElementById('date');
         const moonBrightnessSpan = document.getElementById('moonBrightness');
-        
+
         const date = new Date();
+        console.log(`Today's gregorian date is ${date}`)
         const [day, month, year] = gregorian_to_lunar(date);
         const formattedDay = String(day).padStart(2, '0');
         const formattedMonth = String(month).padStart(2, '0');
         const emoji = moon_emoji(date);
         const [moonBrightness] = moon_brightness(date);
 
-        dateSpan.textContent = `Hoje é o dia ${formattedDay}/${formattedMonth}/${year} no calendário lunar`;
         emojiSpan.textContent = emoji;
-        moonBrightnessSpan.textContent = `A lua está ${moonBrightness.toFixed(2)*100}% iluminada`;
+        dateSpan.textContent = `Today is ${formattedDay}/${formattedMonth}/${year} in the lunar calendar`;
+        moonBrightnessSpan.textContent = `The Moon is ${moonBrightness.toFixed(2)*100}% bright`;
     </script>
 </body>
 </html>
