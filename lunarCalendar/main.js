@@ -14,8 +14,11 @@ const next_lunar_day = (day, month, year) => {
 }
 
 const gregorian_to_lunar = (date) => {
-  const startDate = new Date('2023-10-07T00:00:00Z');
-  const elapsed_days = Math.floor((date - startDate.getTime()) / MS_IN_A_DAY);
+  const startDate = new Date('2023/10/07');
+  const elapsed_days = Math.floor((date - startDate) / MS_IN_A_DAY);
+  console.log(startDate)
+  console.log((date - startDate) / MS_IN_A_DAY)
+  console.log(elapsed_days)
   let lunar_date = [9, 5, 2514];
 
   for (let i = 0; i < elapsed_days; i++) {
@@ -26,7 +29,7 @@ const gregorian_to_lunar = (date) => {
 }
 
 const moon_brightness = (date) => {
-  const fullMoon = new Date('2023-09-29T00:00:00Z');
+  const fullMoon = new Date('2023-09-29T10:00:00Z');
   const t = (date - fullMoon) / MS_IN_A_DAY;
   const brightness = (1 + Math.cos(2 * Math.PI / 29.5305889 * t)) / 2;
   const derivative = -Math.sin(2 * Math.PI / 29.5305889 * t);
