@@ -12,6 +12,7 @@
             background-color: #120D1C;
             color: #FFFDCF;
             font-family: 'Quicksand', sans-serif;
+            overflow-x: hidden;
         }
 
         #container {
@@ -20,6 +21,13 @@
             justify-content: center;
             align-items: center;
             height: 100%;
+            text-align: center;
+        }
+
+        #container2 {
+            background-color: #FFFDCF;
+            color: #120D1C;
+            padding: 50px;
             text-align: center;
         }
 
@@ -39,6 +47,13 @@
         <div id="date"></div>
         <div id="moonBrightness"></div>
     </div>
+    <div id="container2">
+        <h2>What is the lunar calendar?</h2>
+        <p>The commonly used calendar, known as the Gregorian calendar, is based on the tropical year - approximately the time it takes for our Earth to make one revolution around the Sun.</p>
+        <p>In contrast, the lunar calendar is based on phases of the Moon, where each new month begins with a full moon. It comprises of 17 months: even months contain 29 days and odd months contain 30 days, with an additional day added to the 9th month every 50 years. </p>
+        <p>The first day of the calendar, 01/01/0000, was on January 2, of the year -1432. On this day occurred a full moon, a total lunar eclipse, a supermoon and solstice simultaneously. </p>
+    </div>
+
     <script type="module">
         import { gregorian_to_lunar, moon_emoji, moon_brightness } from './main.js';
 
