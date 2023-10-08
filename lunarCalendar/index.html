@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Lunar Calendar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand&display=swap" rel="stylesheet">
     <script type="module" src="main.js"></script>
     <style>
         html, body {
@@ -10,6 +11,7 @@
             height: 100%;
             background-color: #120D1C;
             color: #FFFDCF;
+            font-family: 'Quicksand', sans-serif;
         }
 
         #container {
@@ -23,13 +25,18 @@
 
         .emoji {
             font-size: 70px;
+            margin-bottom: 20px;
+        }
+
+        #date, #moonBrightness {
+            margin-bottom: 30px;
         }
     </style>
 </head>
 <body>
     <div id="container">
-        <div id="emoji" class="emoji"></div>
         <div id="date"></div>
+        <div id="emoji" class="emoji"></div>
         <div id="moonBrightness"></div>
     </div>
     <script type="module">
@@ -38,15 +45,17 @@
         const dateSpan = document.getElementById('date');
         const emojiSpan = document.getElementById('emoji');
         const moonBrightnessSpan = document.getElementById('moonBrightness');
-
+        
         const date = new Date();
         const [day, month, year] = gregorian_to_lunar(date);
+        const formattedDay = String(day).padStart(2, '0');
+        const formattedMonth = String(month).padStart(2, '0');
         const emoji = moon_emoji(date);
         const [moonBrightness] = moon_brightness(date);
 
+        dateSpan.textContent = `Hoje é o dia ${formattedDay}/${formattedMonth}/${year} no calendário lunar`;
         emojiSpan.textContent = emoji;
-        dateSpan.textContent = `Today is ${day}/${month}/${year} in the lunar calendar`;
-        moonBrightnessSpan.textContent = `The moon is ${moonBrightness.toFixed(2)*100}% bright`;
+        moonBrightnessSpan.textContent = `A lua está ${moonBrightness.toFixed(2)*100}% iluminada`;
     </script>
 </body>
 </html>
