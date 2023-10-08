@@ -1,18 +1,23 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Calendário Lunar</title>
+    <title>Lunar Calendar</title>
     <script type="module" src="main.js"></script>
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #120D1C;
+            color: #FFFDCF;
+        }
+
         #container {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: #120D1C;
-            color: #FFFDCF;
-            font-size: 40px;
+            height: 100%;
             text-align: center;
         }
 
@@ -23,11 +28,11 @@
 </head>
 <body>
     <div id="container">
-        <div id="date"></div>
         <div id="emoji" class="emoji"></div>
+        <div id="date"></div>
         <div id="moonBrightness"></div>
     </div>
-    <script>
+    <script type="module">
         import { gregorian_to_lunar, moon_emoji, moon_brightness } from './main.js';
 
         const dateSpan = document.getElementById('date');
@@ -39,9 +44,9 @@
         const emoji = moon_emoji(date);
         const [moonBrightness] = moon_brightness(date);
 
-        dateSpan.textContent = `Hoje é o dia ${day}/${month}/${year} no calendário lunar`;
         emojiSpan.textContent = emoji;
-        moonBrightnessSpan.textContent = `A lua está ${moonBrightness.toFixed(2)*100}% iluminada`;
+        dateSpan.textContent = `Today is ${day}/${month}/${year} in the lunar calendar`;
+        moonBrightnessSpan.textContent = `The moon is ${moonBrightness.toFixed(2)*100}% bright`;
     </script>
 </body>
 </html>
