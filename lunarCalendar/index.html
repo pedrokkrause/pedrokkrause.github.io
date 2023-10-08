@@ -71,7 +71,7 @@
 
         emojiSpan.textContent = emoji;
         dateSpan.textContent = `Today is ${formattedDay}/${formattedMonth}/${year} in the lunar calendar`;
-        moonBrightnessSpan.textContent = `The Moon is ${(moonBrightness*100).toFixed(2)}% illuminated`;
+        moonBrightnessSpan.textContent = `The Moon is ${Math.round(moonBrightness*100)}% illuminated`;
     </script>
 </body>
 </html>
