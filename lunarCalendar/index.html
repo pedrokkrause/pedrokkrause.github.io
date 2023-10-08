@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Calendário Lunar</title>
+    <script type="module" src="main.js"></script>
+    <style>
+        #container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #120D1C;
+            color: #FFFDCF;
+            font-size: 40px;
+            text-align: center;
+        }
+
+        .emoji {
+            font-size: 70px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="date"></div>
+        <div id="emoji" class="emoji"></div>
+        <div id="moonBrightness"></div>
+    </div>
+    <script>
+        import { gregorian_to_lunar, moon_emoji, moon_brightness } from './main.js';
+
+        const dateSpan = document.getElementById('date');
+        const emojiSpan = document.getElementById('emoji');
+        const moonBrightnessSpan = document.getElementById('moonBrightness');
+
+        const date = new Date();
+        const [day, month, year] = gregorian_to_lunar(date);
+        const emoji = moon_emoji(date);
+        const [moonBrightness] = moon_brightness(date);
+
+        dateSpan.textContent = `Hoje é o dia ${day}/${month}/${year} no calendário lunar`;
+        emojiSpan.textContent = emoji;
+        moonBrightnessSpan.textContent = `A lua está ${moonBrightness.toFixed(2)*100}% iluminada`;
+    </script>
+</body>
+</html>
