@@ -16,14 +16,12 @@ const next_lunar_day = (day, month, year) => {
 const gregorian_to_lunar = (date) => {
   const startDate = new Date('2023/10/07');
   const elapsed_days = Math.floor((date - startDate) / MS_IN_A_DAY);
-  console.log(startDate)
-  console.log((date - startDate) / MS_IN_A_DAY)
-  console.log(elapsed_days)
   let lunar_date = [9, 5, 2514];
 
   for (let i = 0; i < elapsed_days; i++) {
     lunar_date = next_lunar_day(...lunar_date);
   }
+  console.log(`The loop required ${elapsed_days} steps. Inefficient, but efficient enough...`)
 
   return lunar_date;
 }

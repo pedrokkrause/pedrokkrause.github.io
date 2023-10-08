@@ -62,7 +62,6 @@
         const moonBrightnessSpan = document.getElementById('moonBrightness');
 
         const date = new Date();
-        console.log(`Today's gregorian date is ${date}`)
         const [day, month, year] = gregorian_to_lunar(date);
         const formattedDay = String(day).padStart(2, '0');
         const formattedMonth = String(month).padStart(2, '0');
@@ -71,7 +70,7 @@
 
         emojiSpan.textContent = emoji;
         dateSpan.textContent = `Today is ${formattedDay}/${formattedMonth}/${year} in the lunar calendar`;
-        moonBrightnessSpan.textContent = `The Moon is ${moonBrightness.toFixed(2)*100}% bright`;
+        moonBrightnessSpan.textContent = `The Moon is ${moonBrightness.toFixed(2)*100}% illuminated`;
     </script>
 </body>
 </html>
