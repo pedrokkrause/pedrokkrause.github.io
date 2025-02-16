@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Derivative Control Experiment</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #1e1e2f; /* Deep blue-gray background */
+      font-family: sans-serif;
+    }
+    #canvas {
+      display: block;
+    }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+    }
+    #info {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px;
+      z-index: 10;
+      text-align: right;
+      line-height: 1.5;
+    }
+    /* Help bubble style */
+    #helpBubble {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: #ffd700;
+      color: #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 20;
+    }
+    /* Modal for explanation */
+    #explanationModal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 30;
+      max-width: 90%;
+      text-align: left;
+    }
+    #explanationModal h2 {
+      margin-top: 0;
+    }
+    #closeExplanation {
+      margin-top: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="modeSelect">Control Mode:</label>
+    <select id="modeSelect">
+      <option value="position">Position</option>
+      <option value="velocity">Velocity</option>
+      <option value="acceleration">Acceleration</option>
+      <option value="jerk">Jerk</option>
+    </select>
+    <br>
+    <label>
+      <input type="checkbox" id="gravityCheckbox">
+      Gravity
+    </label>
+  </div>
+
+  <div id="info"></div>
+
+  <!-- Help bubble -->
+  <div id="helpBubble" title="Click for explanation">
+    ?
+  </div>
+
+  <!-- Explanation Modal -->
+  <div id="explanationModal">
+    <h2>Simulation Explanation</h2>
+    <p>
+      This simulation lets you control a ball by applying a "magic force" in different ways.
+      <br><br>
+      <strong>Control Modes:</strong>
+      <ul>
+        <li><em>Position:</em> The ball immediately jumps to the cursor.</li>
+        <li><em>Velocity:</em> You directly set the ball’s velocity by clicking.</li>
+        <li><em>Acceleration:</em> You apply a force to accelerate the ball.</li>
+        <li><em>Jerk:</em> You control how the acceleration changes over time.</li>
+      </ul>
+      <br>
+      - When you press the mouse, the selected effect is applied based on the distance from the ball to the cursor.<br>
+      - When you release the mouse, the "force" disappears, and the ball keeps moving with its current velocity.<br>
+      - If <strong>Gravity</strong> is enabled, a constant downward force is added.<br>
+      - The ball has a <strong>maximum speed</strong>, so it cannot accelerate indefinitely.
+    </p>
+    <button id="closeExplanation">Close</button>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    // Set up the canvas.
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Get elements.
+    const modeSelect = document.getElementById('modeSelect');
+    const gravityCheckbox = document.getElementById('gravityCheckbox');
+    const helpBubble = document.getElementById('helpBubble');
+    const explanationModal = document.getElementById('explanationModal');
+    const closeExplanation = document.getElementById('closeExplanation');
+
+    // Gravity settings.
+    let gravityOn = false;
+    const gravityConstant = 500; // pixels per second² (adjust as needed)
+    gravityCheckbox.addEventListener('change', () => {
+      gravityOn = gravityCheckbox.checked;
+    });
+
+    // Help modal toggling.
+    helpBubble.addEventListener('click', () => {
+      explanationModal.style.display = 'block';
+    });
+    closeExplanation.addEventListener('click', () => {
+      explanationModal.style.display = 'none';
+    });
+
+    // Define the ball with its state.
+    const ball = {
+      pos: { x: canvas.width / 2, y: canvas.height / 2 },
+      vel: { x: 0, y: 0 },
+      acc: { x: 0, y: 0 },
+      jerk: { x: 0, y: 0 },
+      radius: 20,
+      maxSpeed: 500 // pixels per second
+    };
+
+    // Control constants for the logarithmic formula per mode.
+    const controlConstants = {
+      velocity: 300,
+      acceleration: 1000,
+      jerk: 5000
+    };
+
+    // Mouse state variables.
+    let mousePressed = false;
+    let mousePos = { x: 0, y: 0 };
+
+    // This variable holds the intended control vector (for drawing).
+    let controlVector = null;
+
+    // Update the controlled derivative based on current mousePos.
+    function handleControl() {
+      const mode = modeSelect.value;
+      const dx = mousePos.x - ball.pos.x;
+      const dy = mousePos.y - ball.pos.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (mode === 'position') {
+        // Immediately jump to the mouse position and clear all derivatives.
+        ball.pos.x = mousePos.x;
+        ball.pos.y = mousePos.y;
+        ball.vel = { x: 0, y: 0 };
+        ball.acc = { x: 0, y: 0 };
+        ball.jerk = { x: 0, y: 0 };
+        controlVector = null;
+      } else if (dist > 0) {
+        // Compute the magnitude using the logarithmic formula:
+        // magnitude = k * ln(1 + (x/k))
+        let k = controlConstants[mode];
+        const mag = k * Math.log(1 + (dist / k));
+        // Determine the control vector.
+        const cvx = (dx / dist) * mag;
+        const cvy = (dy / dist) * mag;
+        controlVector = { x: cvx, y: cvy };
+
+        // Apply the control vector to the appropriate derivative.
+        if (mode === 'velocity') {
+          ball.vel = { ...controlVector };
+        } else if (mode === 'acceleration') {
+          ball.acc = { ...controlVector };
+        } else if (mode === 'jerk') {
+          ball.jerk = { ...controlVector };
+        }
+      }
+    }
+
+    // Mouse event handlers.
+    canvas.addEventListener('mousedown', (e) => {
+      mousePressed = true;
+      const rect = canvas.getBoundingClientRect();
+      mousePos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      handleControl();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!mousePressed) return;
+      const rect = canvas.getBoundingClientRect();
+      mousePos = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      };
+      handleControl();
+    });
+
+    // When the mouse is released, cancel the controlled "force" (acceleration & jerk),
+    // while preserving the current velocity.
+    function resetControlledForce() {
+      ball.acc = { x: 0, y: 0 };
+      ball.jerk = { x: 0, y: 0 };
+      controlVector = null;
+    }
+
+    canvas.addEventListener('mouseup', () => {
+      mousePressed = false;
+      resetControlledForce();
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      mousePressed = false;
+      resetControlledForce();
+    });
+
+    // Also, if switching modes while the mouse is pressed, cancel previous forces.
+    modeSelect.addEventListener('change', () => {
+      if (mousePressed) {
+        resetControlledForce();
+        handleControl();
+      }
+    });
+
+    // Helper: Clamp the ball's velocity to maxSpeed.
+    function clampVelocity() {
+      const speed = Math.hypot(ball.vel.x, ball.vel.y);
+      if (speed > ball.maxSpeed) {
+        const scale = ball.maxSpeed / speed;
+        ball.vel.x *= scale;
+        ball.vel.y *= scale;
+      }
+    }
+
+    // Helper: Draw an arrow from (fromX, fromY) to (toX, toY).
+    function drawArrow(fromX, fromY, toX, toY) {
+      const headLength = 10;
+      const dx = toX - fromX;
+      const dy = toY - fromY;
+      const angle = Math.atan2(dy, dx);
+
+      ctx.beginPath();
+      ctx.moveTo(fromX, fromY);
+      ctx.lineTo(toX, toY);
+      ctx.strokeStyle = "#ffd700"; // Golden color
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(toX, toY);
+      ctx.lineTo(toX - headLength * Math.cos(angle - Math.PI / 6),
+                 toY - headLength * Math.sin(angle - Math.PI / 6));
+      ctx.lineTo(toX - headLength * Math.cos(angle + Math.PI / 6),
+                 toY - headLength * Math.sin(angle + Math.PI / 6));
+      ctx.lineTo(toX, toY);
+      ctx.fillStyle = "#ffd700";
+      ctx.fill();
+    }
+
+    // Update the info panel with current derivative values.
+    function updateInfo() {
+      const infoDiv = document.getElementById("info");
+      infoDiv.innerHTML = `
+        <strong>Position:</strong> (${ball.pos.x.toFixed(1)}, ${ball.pos.y.toFixed(1)})<br>
+        <strong>Velocity:</strong> (${ball.vel.x.toFixed(1)}, ${ball.vel.y.toFixed(1)})<br>
+        <strong>Acceleration:</strong> (${ball.acc.x.toFixed(1)}, ${ball.acc.y.toFixed(1)})<br>
+        <strong>Jerk:</strong> (${ball.jerk.x.toFixed(1)}, ${ball.jerk.y.toFixed(1)})
+      `;
+    }
+
+    // Animation loop.
+    let lastTime = null;
+    function animate(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = (timestamp - lastTime) / 1000; // seconds
+      lastTime = timestamp;
+
+      // Continuously update control while the mouse is pressed.
+      if (mousePressed) {
+        handleControl();
+      }
+
+      // Physics integration:
+      // Jerk affects acceleration.
+      ball.acc.x += ball.jerk.x * dt;
+      ball.acc.y += ball.jerk.y * dt;
+      // Acceleration affects velocity.
+      ball.vel.x += ball.acc.x * dt;
+      ball.vel.y += ball.acc.y * dt;
+
+      // Apply gravity to velocity if enabled.
+      if (gravityOn) {
+        ball.vel.y += gravityConstant * dt;
+      }
+
+      // Clamp the velocity.
+      clampVelocity();
+      // Velocity affects position.
+      ball.pos.x += ball.vel.x * dt;
+      ball.pos.y += ball.vel.y * dt;
+
+      // Basic collision with canvas boundaries.
+      if (ball.pos.x - ball.radius < 0) {
+        ball.pos.x = ball.radius;
+        ball.vel.x *= -1;
+        ball.acc.x *= -1;
+      }
+      if (ball.pos.x + ball.radius > canvas.width) {
+        ball.pos.x = canvas.width - ball.radius;
+        ball.vel.x *= -1;
+        ball.acc.x *= -1;
+      }
+      if (ball.pos.y - ball.radius < 0) {
+        ball.pos.y = ball.radius;
+        ball.vel.y *= -1;
+        ball.acc.y *= -1;
+      }
+      if (ball.pos.y + ball.radius > canvas.height) {
+        ball.pos.y = canvas.height - ball.radius;
+        ball.vel.y *= -1;
+        ball.acc.y *= -1;
+      }
+
+      // Clear the canvas.
+      ctx.fillStyle = "#1e1e2f";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw the control arrow (if not in position mode).
+      const mode = modeSelect.value;
+      if (mousePressed && mode !== 'position' && controlVector) {
+        drawArrow(ball.pos.x, ball.pos.y, ball.pos.x + controlVector.x, ball.pos.y + controlVector.y);
+      }
+
+      // Draw the ball.
+      ctx.beginPath();
+      ctx.arc(ball.pos.x, ball.pos.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#00d8ff"; // Vibrant cyan
+      ctx.fill();
+
+      // Update numerical info.
+      updateInfo();
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
