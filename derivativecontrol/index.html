@@ -10,6 +10,7 @@
       overflow: hidden;
       background-color: #1e1e2f; /* Deep blue-gray background */
       font-family: sans-serif;
+      touch-action: none; /* Prevent default gestures on mobile */
     }
     #canvas {
       display: block;
@@ -98,7 +99,7 @@
 
   <!-- Help bubble -->
   <div id="helpBubble" title="Click for explanation">
-    ?
+    (?)
   </div>
 
   <!-- Explanation Modal -->
@@ -110,13 +111,13 @@
       <strong>Control Modes:</strong>
       <ul>
         <li><em>Position:</em> The ball immediately jumps to the cursor.</li>
-        <li><em>Velocity:</em> You directly set the ball’s velocity by clicking.</li>
+        <li><em>Velocity:</em> You directly set the ball’s velocity by tapping.</li>
         <li><em>Acceleration:</em> You apply a force to accelerate the ball.</li>
         <li><em>Jerk:</em> You control how the acceleration changes over time.</li>
       </ul>
       <br>
-      - When you press the mouse, the selected effect is applied based on the distance from the ball to the cursor.<br>
-      - When you release the mouse, the "force" disappears, and the ball keeps moving with its current velocity.<br>
+      - When you press (or tap) and drag, the selected effect is applied based on the distance from the ball to your touch.<br>
+      - When you release, the "force" disappears so the ball keeps its current velocity.<br>
       - If <strong>Gravity</strong> is enabled, a constant downward force is added.<br>
       - The ball has a <strong>maximum speed</strong>, so it cannot accelerate indefinitely.
     </p>
@@ -169,14 +170,14 @@
       maxSpeed: 500 // pixels per second
     };
 
-    // Control constants for the logarithmic formula per mode.
+    // Control constants for the formula per mode.
     const controlConstants = {
       velocity: 300,
       acceleration: 1000,
       jerk: 5000
     };
 
-    // Mouse state variables.
+    // Mouse/touch state variables.
     let mousePressed = false;
     let mousePos = { x: 0, y: 0 };
 
@@ -191,7 +192,7 @@
       const dist = Math.hypot(dx, dy);
 
       if (mode === 'position') {
-        // Immediately jump to the mouse position and clear all derivatives.
+        // Immediately jump to the position and clear all derivatives.
         ball.pos.x = mousePos.x;
         ball.pos.y = mousePos.y;
         ball.vel = { x: 0, y: 0 };
@@ -199,11 +200,9 @@
         ball.jerk = { x: 0, y: 0 };
         controlVector = null;
       } else if (dist > 0) {
-        // Compute the magnitude using the logarithmic formula:
-        // magnitude = k * ln(1 + (x/k))
+        // Use the formula to compute the control vector magnitude.
         let k = controlConstants[mode];
         const mag = k * Math.log(1 + (dist / k));
-        // Determine the control vector.
         const cvx = (dx / dist) * mag;
         const cvy = (dy / dist) * mag;
         controlVector = { x: cvx, y: cvy };
@@ -217,6 +216,15 @@
           ball.jerk = { ...controlVector };
         }
       }
+    }
+
+    // Utility: get touch position relative to canvas.
+    function getTouchPos(touchEvent) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: touchEvent.touches[0].clientX - rect.left,
+        y: touchEvent.touches[0].clientY - rect.top
+      };
     }
 
     // Mouse event handlers.
@@ -240,14 +248,6 @@
       handleControl();
     });
 
-    // When the mouse is released, cancel the controlled "force" (acceleration & jerk),
-    // while preserving the current velocity.
-    function resetControlledForce() {
-      ball.acc = { x: 0, y: 0 };
-      ball.jerk = { x: 0, y: 0 };
-      controlVector = null;
-    }
-
     canvas.addEventListener('mouseup', () => {
       mousePressed = false;
       resetControlledForce();
@@ -258,7 +258,41 @@
       resetControlledForce();
     });
 
-    // Also, if switching modes while the mouse is pressed, cancel previous forces.
+    // Touch event handlers.
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // Prevent scrolling/zooming.
+      mousePressed = true;
+      mousePos = getTouchPos(e);
+      handleControl();
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!mousePressed) return;
+      mousePos = getTouchPos(e);
+      handleControl();
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      mousePressed = false;
+      resetControlledForce();
+    });
+
+    canvas.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      mousePressed = false;
+      resetControlledForce();
+    });
+
+    // When the mouse or touch is released, cancel the "force" (acceleration & jerk).
+    function resetControlledForce() {
+      ball.acc = { x: 0, y: 0 };
+      ball.jerk = { x: 0, y: 0 };
+      controlVector = null;
+    }
+
+    // Also, if switching modes while the pointer is active, cancel previous forces.
     modeSelect.addEventListener('change', () => {
       if (mousePressed) {
         resetControlledForce();
@@ -316,34 +350,30 @@
     let lastTime = null;
     function animate(timestamp) {
       if (!lastTime) lastTime = timestamp;
-      const dt = (timestamp - lastTime) / 1000; // seconds
+      const dt = (timestamp - lastTime) / 1000;
       lastTime = timestamp;
 
-      // Continuously update control while the mouse is pressed.
+      // Continuously update control while the pointer is active.
       if (mousePressed) {
         handleControl();
       }
 
       // Physics integration:
-      // Jerk affects acceleration.
       ball.acc.x += ball.jerk.x * dt;
       ball.acc.y += ball.jerk.y * dt;
-      // Acceleration affects velocity.
       ball.vel.x += ball.acc.x * dt;
       ball.vel.y += ball.acc.y * dt;
 
-      // Apply gravity to velocity if enabled.
+      // Apply gravity if enabled.
       if (gravityOn) {
         ball.vel.y += gravityConstant * dt;
       }
 
-      // Clamp the velocity.
       clampVelocity();
-      // Velocity affects position.
       ball.pos.x += ball.vel.x * dt;
       ball.pos.y += ball.vel.y * dt;
 
-      // Basic collision with canvas boundaries.
+      // Collision with canvas boundaries.
       if (ball.pos.x - ball.radius < 0) {
         ball.pos.x = ball.radius;
         ball.vel.x *= -1;
@@ -369,7 +399,7 @@
       ctx.fillStyle = "#1e1e2f";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw the control arrow (if not in position mode).
+      // Draw control arrow (if applicable).
       const mode = modeSelect.value;
       if (mousePressed && mode !== 'position' && controlVector) {
         drawArrow(ball.pos.x, ball.pos.y, ball.pos.x + controlVector.x, ball.pos.y + controlVector.y);
@@ -378,12 +408,10 @@
       // Draw the ball.
       ctx.beginPath();
       ctx.arc(ball.pos.x, ball.pos.y, ball.radius, 0, Math.PI * 2);
-      ctx.fillStyle = "#00d8ff"; // Vibrant cyan
+      ctx.fillStyle = "#00d8ff";
       ctx.fill();
 
-      // Update numerical info.
       updateInfo();
-
       requestAnimationFrame(animate);
     }
 
