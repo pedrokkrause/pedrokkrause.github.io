@@ -1,283 +1,311 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Angle-Intuition Tester</title>
-<!-- ▸ Chart.js CDN (v4) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-
-<style>
-  :root{
-    --accent:#0d6efd;
-    --bg:#f5f6fa;
-    --border:#dcdfe6;
-    --radius:8px;
-    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  }
-  html,body{height:100%;margin:0;background:var(--bg);}
-  /* ----  FLEX 2-COLUMN LAYOUT  ------------------------------------ */
-  .wrapper{
-    display:flex;
-    flex-direction:row;
-    gap:1.25rem;
-    height:100%;
-    padding:1rem;
-    box-sizing:border-box;
-  }
-  @media(max-width:900px){
-    .wrapper{flex-direction:column;}    /* stack on narrow screens */
-  }
-  /* left = game area ---------------------------------------------- */
-  .leftPane{
-    flex:1 1 45%;
-    display:flex;
-    flex-direction:column;
-    gap:.75rem;
-  }
-  canvas#gameCanvas{
-    flex:1 1 auto;
-    background:#fff;
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-  }
-  .guessBox{
-    display:flex;
-    gap:.5rem;
-  }
-  input[type="number"]{
-    flex:1 1 auto;
-    padding:.5rem .75rem;
-    font-size:1rem;
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-  }
-  button{
-    padding:.5rem 1rem;
-    font-size:1rem;
-    background:var(--accent);
-    color:#fff;
-    border:none;
-    border-radius:var(--radius);
-    cursor:pointer;
-  }
-  button:hover{filter:brightness(1.1);}
-  /* right = analysis ---------------------------------------------- */
-  .rightPane{
-    flex:1 1 55%;
-    display:flex;
-    flex-direction:column;
-    gap:.75rem;
-  }
-  .tableWrapper{
-    overflow:auto;
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    background:#fff;
-    max-height:240px;
-  }
-  table{
-    width:100%;
-    border-collapse:collapse;
-    font-size:.9rem;
-  }
-  th,td{
-    padding:.35rem .5rem;
-    border-bottom:1px solid var(--border);
-    text-align:center;
-  }
-  th{background:#f2f3f7;font-weight:600;}
-  tr:last-child td{border-bottom:none;}
-  .rmseBox{
-    text-align:right;
-    font-weight:600;
-    padding:.25rem .75rem;
-  }
-  /* chart container */
-  #chartContainer{
-    flex:1 1 auto;
-    background:#fff;
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:1rem;
-  }
-</style>
-</head>
-
-<body>
-<div class="wrapper">
-  <!-- LEFT ---------------------------------------------------------->
-  <div class="leftPane">
-    <canvas id="gameCanvas"></canvas>
-
-    <form id="guessForm" class="guessBox" autocomplete="off">
-      <input id="guessInput" type="number" placeholder="your guess (°)" required />
-      <button type="submit">Submit</button>
-    </form>
-  </div>
-
-  <!-- RIGHT --------------------------------------------------------->
-  <div class="rightPane">
-    <div class="tableWrapper">
-      <table id="resultsTable">
-        <thead>
-          <tr><th>#</th><th>true (°)</th><th>guess (°)</th><th>error |°|</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-      <div class="rmseBox">RMSE: <span id="rmseVal">—</span></div>
-    </div>
-
-    <div id="chartContainer">
-      <canvas id="scatterChart"></canvas>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ---------- constants ------------------------------------------ */
-const LENGTH_RATIO = 0.4;    // line length as % of smaller side
-const MIN_DIFF = 5;          // min angle separation (°)
-/* ---------- helpers -------------------------------------------- */
-const randAngle = () => Math.floor(Math.random()*360);
-function pickTwoAngles(){
-  let a1, a2, diff;
-  do{
-    a1 = randAngle();
-    a2 = randAngle();
-    diff = Math.abs(a1 - a2);
-    diff = diff>180 ? 360-diff : diff;
-  }while(diff < MIN_DIFF);
-  return [a1, a2];
-}
-function deg2rad(d){return d*Math.PI/180}
-/* ---------- canvas drawing ------------------------------------- */
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let angle1=0, angle2=0;
-
-function resizeCanvas(){
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
-  drawLines();
-}
-window.addEventListener('resize', resizeCanvas);
-
-function drawLines(){
-  if(!canvas.width) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  const cx = canvas.width/2, cy = canvas.height/2;
-  const L = LENGTH_RATIO*Math.min(canvas.width,canvas.height);
-  const [x1,y1] = [cx+L*Math.cos(deg2rad(angle1)), cy-L*Math.sin(deg2rad(angle1))];
-  const [x2,y2] = [cx+L*Math.cos(deg2rad(angle2)), cy-L*Math.sin(deg2rad(angle2))];
-  // black line
-  ctx.lineWidth = 4; ctx.strokeStyle = '#000';
-  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x1,y1); ctx.stroke();
-  // red line
-  ctx.strokeStyle = '#d81b60';
-  ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x2,y2); ctx.stroke();
-}
-/* ---------- data collection ------------------------------------ */
-const tbody = document.querySelector('#resultsTable tbody');
-const rmseSpan = document.getElementById('rmseVal');
-let points = [];   // {true, guess}
-
-function addRow(n, t, g, err){
-  const tr = document.createElement('tr');
-  tr.innerHTML = `<td>${n}</td><td>${t}</td><td>${g}</td><td>${err}</td>`;
-  tbody.appendChild(tr);
-}
-/* ---------- RMSE ------------------------------------------------ */
-function calcRMSE(arr){
-  if(!arr.length) return '—';
-  const mse = arr.reduce((s,p)=>s+Math.pow(p.true - p.guess,2),0)/arr.length;
-  return Math.sqrt(mse).toFixed(2);
-}
-/* ---------- Chart.js scatter ----------------------------------- */
-const scatterCtx = document.getElementById('scatterChart');
-const scatterChart = new Chart(scatterCtx, {
-  type: 'scatter',
-  data: {
-    datasets: [
-      {
-        label: 'Your estimates',
-        data: [],          // filled in later
-        showLine: false,
-        pointRadius: 4,
-        borderColor: '#0d6efd'
-      },
-      {
-        label: 'Perfect y = x',
-        data: [ {x:0,y:0}, {x:180,y:180} ],
-        type: 'line',      // <— draw as a line
-        showLine: true,    // <— ensure it’s drawn
-        pointRadius: 0,
-        borderDash: [6,4],
-        borderColor: '#d63384',
-        fill: false,
-        tension: 0
-      },
-      {
-        label: 'Regression',
-        data: [],          // filled dynamically
-        type: 'line',      // <— draw as a line
-        showLine: true,
-        pointRadius: 0,
-        borderColor: '#fd7e14',
-        fill: false,
-        tension: 0
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: { title: { display: true, text: 'True angle (°)' }, min: 0, max: 180 },
-      y: { title: { display: true, text: 'Your guess (°)' }, min: 0, max: 180 }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Angle-Intuition Tester</title>
+  <!-- Chart.js v4 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --accent:#0d6efd;
+      --bg:#f5f6fa;
+      --border:#dcdfe6;
+      --radius:8px;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     }
-  }
-});
+    html,body{height:100%;margin:0;background:var(--bg);}
+    .wrapper{
+      display:flex;
+      flex-direction:row;
+      gap:1.25rem;
+      height:100%;
+      padding:1rem;
+      box-sizing:border-box;
+    }
+    @media(max-width:900px){ .wrapper{flex-direction:column;} }
+    .leftPane{
+      flex:1 1 45%;
+      display:flex;
+      flex-direction:column;
+      gap:.75rem;
+    }
+    canvas#gameCanvas{
+      flex:1 1 auto;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+    }
+    .guessBox{
+      display:flex;
+      gap:.5rem;
+    }
+    input[type="number"]{
+      flex:1 1 auto;
+      padding:.5rem .75rem;
+      font-size:1rem;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+    }
+    button{
+      padding:.5rem 1rem;
+      font-size:1rem;
+      background:var(--accent);
+      color:#fff;
+      border:none;
+      border-radius:var(--radius);
+      cursor:pointer;
+    }
+    button:hover{ filter:brightness(1.1); }
+    .rightPane{
+      flex:1 1 55%;
+      display:flex;
+      flex-direction:column;
+      gap:.75rem;
+    }
+    .tableWrapper{
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      background:#fff;
+      max-height:240px;
+      position:relative;
+    }
+    .tableControls{
+      display:flex;
+      justify-content:flex-end;
+      padding:.5rem;
+      background:#fafbfd;
+      border-bottom:1px solid var(--border);
+      border-top-left-radius:var(--radius);
+      border-top-right-radius:var(--radius);
+    }
+    .tableControls button{
+      background:#198754;
+      margin-left:.5rem;
+    }
+    table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:.9rem;
+    }
+    th,td{
+      padding:.35rem .5rem;
+      border-bottom:1px solid var(--border);
+      text-align:center;
+    }
+    th{ background:#f2f3f7; font-weight:600; }
+    tr:last-child td{ border-bottom:none; }
+    .rmseBox{
+      text-align:right;
+      font-weight:600;
+      padding:.25rem .75rem;
+    }
+    #chartContainer{
+      flex:1 1 auto;
+      background:#fff;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="leftPane">
+      <canvas id="gameCanvas"></canvas>
+      <form id="guessForm" class="guessBox" autocomplete="off">
+        <input id="guessInput" type="number" placeholder="your guess (°)" required />
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+    <div class="rightPane">
+      <div class="tableWrapper">
+        <div class="tableControls">
+          <button id="downloadCsvBtn" title="Download as CSV">Download CSV</button>
+        </div>
+        <table id="resultsTable">
+          <thead>
+            <tr><th>#</th><th>true (°)</th><th>guess (°)</th><th>error |°|</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="rmseBox">RMSE: <span id="rmseVal">—</span></div>
+      </div>
+      <div id="chartContainer">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+  </div>
 
-function updateChart(){
-  // user scatter
-  scatterChart.data.datasets[0].data = points.map(p=>({x:p.true,y:p.guess}));
-  // regression
-  if(points.length>=2){
-    const n=points.length;
-    const sumX=points.reduce((s,p)=>s+p.true,0);
-    const sumY=points.reduce((s,p)=>s+p.guess,0);
-    const sumXY=points.reduce((s,p)=>s+p.true*p.guess,0);
-    const sumX2=points.reduce((s,p)=>s+p.true*p.true,0);
-    const m = (n*sumXY - sumX*sumY)/(n*sumX2 - sumX*sumX);
-    const b = (sumY - m*sumX)/n;
-    scatterChart.data.datasets[2].data = [{x:0,y:b},{x:180,y:m*180+b}];
-  }else{
-    scatterChart.data.datasets[2].data = [];
+  <script>
+  // configuration constants
+  const LENGTH_RATIO = 0.4;
+  const MIN_DIFF = 5;
+
+  // generate random angles
+  const randAngle = () => Math.floor(Math.random() * 360);
+  function pickTwoAngles() {
+    let a1, a2, diff;
+    do {
+      a1 = randAngle();
+      a2 = randAngle();
+      diff = Math.abs(a1 - a2);
+      diff = diff > 180 ? 360 - diff : diff;
+    } while (diff < MIN_DIFF);
+    return [a1, a2];
   }
-  scatterChart.update();
-}
-/* ---------- game loop ------------------------------------------ */
-function newTrial(){
-  [angle1, angle2] = pickTwoAngles();
-  resizeCanvas();
-}
-document.getElementById('guessForm').addEventListener('submit',e=>{
-  e.preventDefault();
-  const guess = parseFloat(document.getElementById('guessInput').value);
-  if(isNaN(guess)) return;
-  const diff = Math.abs(angle1-angle2);
-  const trueAngle = diff>180 ? 360-diff : diff;
-  const err = Math.abs(trueAngle - guess);
-  points.push({true:trueAngle,guess});
-  addRow(points.length,trueAngle,guess,err.toFixed(1));
-  rmseSpan.textContent = calcRMSE(points);
-  updateChart();
-  e.target.reset();
+  const deg2rad = d => d * Math.PI / 180;
+
+  // canvas drawing
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let angle1, angle2;
+
+  function resizeCanvas() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    drawLines();
+  }
+  window.addEventListener('resize', resizeCanvas);
+  new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
+
+  function drawLines() {
+    if (!canvas.width) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const L = LENGTH_RATIO * Math.min(canvas.width, canvas.height);
+    const x1 = cx + L * Math.cos(deg2rad(angle1));
+    const y1 = cy - L * Math.sin(deg2rad(angle1));
+    const x2 = cx + L * Math.cos(deg2rad(angle2));
+    const y2 = cy - L * Math.sin(deg2rad(angle2));
+    // black
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#000';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x1, y1); ctx.stroke();
+    // red
+    ctx.strokeStyle = '#d81b60';
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+
+  // data storage & table
+  let points = JSON.parse(localStorage.getItem('anglePoints') || '[]');
+  const tbody = document.querySelector('#resultsTable tbody');
+  const rmseSpan = document.getElementById('rmseVal');
+
+  function addRow(n, t, g, err) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td>${n}</td>
+       <td>${t}</td>
+       <td>${g}</td>
+       <td>${err}</td>
+       <td><button class="del" data-idx="${n-1}">×</button></td>`;
+    tbody.appendChild(tr);
+  }
+
+  function calcRMSE(arr) {
+    if (!arr.length) return '—';
+    const mse = arr.reduce((s, p) => s + Math.pow(p.true - p.guess, 2), 0) / arr.length;
+    return Math.sqrt(mse).toFixed(2);
+  }
+
+  // Chart.js scatter + lines
+  const scatterCtx = document.getElementById('scatterChart');
+  const scatterChart = new Chart(scatterCtx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Your estimates', data: [], showLine: false, pointRadius: 4 },
+        { label: 'Perfect y = x', data: [ {x:0,y:0}, {x:180,y:180} ], type: 'line', showLine: true, pointRadius: 0, borderDash: [6,4], borderColor: '#d63384', fill: false, tension: 0 },
+        { label: 'Regression', data: [], type: 'line', showLine: true, pointRadius: 0, borderColor: '#fd7e14', fill: false, tension: 0 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: 'True angle (°)' }, min:0, max:180 },
+        y: { title: { display: true, text: 'Your guess (°)' }, min:0, max:180 }
+      }
+    }
+  });
+  new ResizeObserver(() => scatterChart.resize()).observe(document.getElementById('chartContainer'));
+
+  function updateChart() {
+    scatterChart.data.datasets[0].data = points.map(p => ({ x: p.true, y: p.guess }));
+    if (points.length >= 2) {
+      const n = points.length;
+      const sumX = points.reduce((s,p) => s + p.true, 0);
+      const sumY = points.reduce((s,p) => s + p.guess,0);
+      const sumXY= points.reduce((s,p) => s + p.true*p.guess,0);
+      const sumX2= points.reduce((s,p) => s + p.true*p.true,0);
+      const m = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
+      const b = (sumY - m*sumX) / n;
+      scatterChart.data.datasets[2].data = [ {x:0,y:b}, {x:180,y:m*180+b} ];
+    } else {
+      scatterChart.data.datasets[2].data = [];
+    }
+    scatterChart.update();
+  }
+
+  // CSV download
+  const downloadBtn = document.getElementById('downloadCsvBtn');
+  downloadBtn.addEventListener('click', () => {
+    if (!points.length) return;
+    let csv = 'index,true,guess,error\n';
+    points.forEach((p,i) => {
+      const err = Math.abs(p.true - p.guess).toFixed(1);
+      csv += `${i+1},${p.true},${p.guess},${err}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'angle_data.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  function saveAndRender() {
+    localStorage.setItem('anglePoints', JSON.stringify(points));
+    tbody.innerHTML = '';
+    points.forEach((p,i) => addRow(i+1, p.true, p.guess, Math.abs(p.true-p.guess).toFixed(1)));
+    rmseSpan.textContent = calcRMSE(points);
+    updateChart();
+    tbody.querySelectorAll('button.del').forEach(btn => {
+      btn.onclick = () => {
+        points.splice(+btn.dataset.idx, 1);
+        saveAndRender();
+      };
+    });
+  }
+
+  // game logic
+  const guessForm = document.getElementById('guessForm');
+  const guessInput = document.getElementById('guessInput');
+  guessForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const guess = parseFloat(guessInput.value.trim());
+    if (isNaN(guess)) return;
+    const diff = Math.abs(angle1 - angle2);
+    const trueAngle = diff > 180 ? 360 - diff : diff;
+    points.push({ true: trueAngle, guess });
+    saveAndRender();
+    guessForm.reset();
+    newTrial();
+  });
+
+  function newTrial() {
+    [angle1, angle2] = pickTwoAngles();
+    resizeCanvas();
+  }
+
+  // initial render/load
+  saveAndRender();
   newTrial();
-});
-/* ---------- init ------------------------------------------------ */
-newTrial();
-</script>
+  </script>
 </body>
 </html>
