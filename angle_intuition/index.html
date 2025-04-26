@@ -81,8 +81,13 @@
       border-top-right-radius:var(--radius);
     }
     .tableControls button{
-      background:#198754;
       margin-left:.5rem;
+    }
+    .tableControls #downloadCsvBtn{
+      background:#198754;
+    }
+    .tableControls #clearAllBtn{
+      background:#dc3545;
     }
     table{
       width:100%;
@@ -123,6 +128,7 @@
       <div class="tableWrapper">
         <div class="tableControls">
           <button id="downloadCsvBtn" title="Download as CSV">Download CSV</button>
+          <button id="clearAllBtn" title="Clear all data">Clear All</button>
         </div>
         <table id="resultsTable">
           <thead>
@@ -139,17 +145,13 @@
   </div>
 
   <script>
-  // configuration constants
   const LENGTH_RATIO = 0.4;
   const MIN_DIFF = 5;
-
-  // generate random angles
   const randAngle = () => Math.floor(Math.random() * 360);
   function pickTwoAngles() {
     let a1, a2, diff;
     do {
-      a1 = randAngle();
-      a2 = randAngle();
+      a1 = randAngle(); a2 = randAngle();
       diff = Math.abs(a1 - a2);
       diff = diff > 180 ? 360 - diff : diff;
     } while (diff < MIN_DIFF);
@@ -157,11 +159,9 @@
   }
   const deg2rad = d => d * Math.PI / 180;
 
-  // canvas drawing
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
   let angle1, angle2;
-
   function resizeCanvas() {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
@@ -169,143 +169,97 @@
   }
   window.addEventListener('resize', resizeCanvas);
   new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
-
   function drawLines() {
     if (!canvas.width) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const cx = canvas.width / 2, cy = canvas.height / 2;
-    const L = LENGTH_RATIO * Math.min(canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const cx = canvas.width/2, cy = canvas.height/2;
+    const L = LENGTH_RATIO * Math.min(canvas.width,canvas.height);
     const x1 = cx + L * Math.cos(deg2rad(angle1));
     const y1 = cy - L * Math.sin(deg2rad(angle1));
     const x2 = cx + L * Math.cos(deg2rad(angle2));
     const y2 = cy - L * Math.sin(deg2rad(angle2));
-    // black
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#000';
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x1, y1); ctx.stroke();
-    // red
-    ctx.strokeStyle = '#d81b60';
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.lineWidth = 4; ctx.strokeStyle='#000';
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x1,y1); ctx.stroke();
+    ctx.strokeStyle='#d81b60';
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x2,y2); ctx.stroke();
   }
 
-  // data storage & table
-  let points = JSON.parse(localStorage.getItem('anglePoints') || '[]');
+  let points = JSON.parse(localStorage.getItem('anglePoints')||'[]');
   const tbody = document.querySelector('#resultsTable tbody');
   const rmseSpan = document.getElementById('rmseVal');
-
-  function addRow(n, t, g, err) {
+  function addRow(n,t,g,err) {
     const tr = document.createElement('tr');
-    tr.innerHTML =
-      `<td>${n}</td>
-       <td>${t}</td>
-       <td>${g}</td>
-       <td>${err}</td>
-       <td><button class="del" data-idx="${n-1}">×</button></td>`;
+    tr.innerHTML = `<td>${n}</td><td>${t}</td><td>${g}</td><td>${err}</td><td><button class="del" data-idx="${n-1}">×</button></td>`;
     tbody.appendChild(tr);
   }
-
   function calcRMSE(arr) {
     if (!arr.length) return '—';
-    const mse = arr.reduce((s, p) => s + Math.pow(p.true - p.guess, 2), 0) / arr.length;
+    const mse = arr.reduce((s,p)=>s+Math.pow(p.true-p.guess,2),0)/arr.length;
     return Math.sqrt(mse).toFixed(2);
   }
 
-  // Chart.js scatter + lines
   const scatterCtx = document.getElementById('scatterChart');
-  const scatterChart = new Chart(scatterCtx, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        { label: 'Your estimates', data: [], showLine: false, pointRadius: 4 },
-        { label: 'Perfect y = x', data: [ {x:0,y:0}, {x:180,y:180} ], type: 'line', showLine: true, pointRadius: 0, borderDash: [6,4], borderColor: '#d63384', fill: false, tension: 0 },
-        { label: 'Regression', data: [], type: 'line', showLine: true, pointRadius: 0, borderColor: '#fd7e14', fill: false, tension: 0 }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: 'True angle (°)' }, min:0, max:180 },
-        y: { title: { display: true, text: 'Your guess (°)' }, min:0, max:180 }
-      }
-    }
+  const scatterChart = new Chart(scatterCtx,{
+    type:'scatter',
+    data:{datasets:[
+      {label:'Your estimates',data:[],showLine:false,pointRadius:4},
+      {label:'Perfect y = x',data:[{x:0,y:0},{x:180,y:180}],type:'line',showLine:true,pointRadius:0,borderDash:[6,4],borderColor:'#d63384',fill:false,tension:0},
+      {label:'Regression',data:[],type:'line',showLine:true,pointRadius:0,borderColor:'#fd7e14',fill:false,tension:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'True angle (°)'},min:0,max:180},y:{title:{display:true,text:'Your guess (°)'},min:0,max:180}}}
   });
-  new ResizeObserver(() => scatterChart.resize()).observe(document.getElementById('chartContainer'));
-
-  function updateChart() {
-    scatterChart.data.datasets[0].data = points.map(p => ({ x: p.true, y: p.guess }));
-    if (points.length >= 2) {
-      const n = points.length;
-      const sumX = points.reduce((s,p) => s + p.true, 0);
-      const sumY = points.reduce((s,p) => s + p.guess,0);
-      const sumXY= points.reduce((s,p) => s + p.true*p.guess,0);
-      const sumX2= points.reduce((s,p) => s + p.true*p.true,0);
-      const m = (n*sumXY - sumX*sumY) / (n*sumX2 - sumX*sumX);
-      const b = (sumY - m*sumX) / n;
-      scatterChart.data.datasets[2].data = [ {x:0,y:b}, {x:180,y:m*180+b} ];
-    } else {
-      scatterChart.data.datasets[2].data = [];
-    }
+  new ResizeObserver(()=>scatterChart.resize()).observe(document.getElementById('chartContainer'));
+  function updateChart(){
+    scatterChart.data.datasets[0].data = points.map(p=>({x:p.true,y:p.guess}));
+    if(points.length>=2){
+      const n=points.length,sumX=points.reduce((s,p)=>s+p.true,0),sumY=points.reduce((s,p)=>s+p.guess,0),sumXY=points.reduce((s,p)=>s+p.true*p.guess,0),sumX2=points.reduce((s,p)=>s+p.true*p.true,0);
+      const m=(n*sumXY-sumX*sumY)/(n*sumX2-sumX*sumX);
+      const b=(sumY-m*sumX)/n;
+      scatterChart.data.datasets[2].data=[{x:0,y:b},{x:180,y:m*180+b}];
+    } else scatterChart.data.datasets[2].data=[];
     scatterChart.update();
   }
 
-  // CSV download
-  const downloadBtn = document.getElementById('downloadCsvBtn');
-  downloadBtn.addEventListener('click', () => {
-    if (!points.length) return;
-    let csv = 'index,true,guess,error\n';
-    points.forEach((p,i) => {
-      const err = Math.abs(p.true - p.guess).toFixed(1);
-      csv += `${i+1},${p.true},${p.guess},${err}\n`;
-    });
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'angle_data.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const downloadBtn=document.getElementById('downloadCsvBtn');
+  downloadBtn.addEventListener('click',()=>{
+    if(!points.length) return;
+    let csv='index,true,guess,error\n';
+    points.forEach((p,i)=>{const err=Math.abs(p.true-p.guess).toFixed(1);csv+=`${i+1},${p.true},${p.guess},${err}\n`;});
+    const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url; a.download='angle_data.csv'; document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
   });
 
-  function saveAndRender() {
-    localStorage.setItem('anglePoints', JSON.stringify(points));
-    tbody.innerHTML = '';
-    points.forEach((p,i) => addRow(i+1, p.true, p.guess, Math.abs(p.true-p.guess).toFixed(1)));
-    rmseSpan.textContent = calcRMSE(points);
+  const clearBtn=document.getElementById('clearAllBtn');
+  clearBtn.addEventListener('click',()=>{
+    if(confirm('Clear all data? This cannot be undone.')){
+      points=[];
+      localStorage.removeItem('anglePoints');
+      saveAndRender();
+    }
+  });
+
+  function saveAndRender(){
+    localStorage.setItem('anglePoints',JSON.stringify(points));
+    tbody.innerHTML='';
+    points.forEach((p,i)=>addRow(i+1,p.true,p.guess,Math.abs(p.true-p.guess).toFixed(1)));
+    rmseSpan.textContent=calcRMSE(points);
     updateChart();
-    tbody.querySelectorAll('button.del').forEach(btn => {
-      btn.onclick = () => {
-        points.splice(+btn.dataset.idx, 1);
-        saveAndRender();
-      };
-    });
+    tbody.querySelectorAll('button.del').forEach(btn=>btn.onclick=()=>{points.splice(+btn.dataset.idx,1);saveAndRender();});
   }
 
-  // game logic
-  const guessForm = document.getElementById('guessForm');
-  const guessInput = document.getElementById('guessInput');
-  guessForm.addEventListener('submit', e => {
+  const guessForm=document.getElementById('guessForm');
+  const guessInput=document.getElementById('guessInput');
+  guessForm.addEventListener('submit',e=>{
     e.preventDefault();
-    const guess = parseFloat(guessInput.value.trim());
-    if (isNaN(guess)) return;
-    const diff = Math.abs(angle1 - angle2);
-    const trueAngle = diff > 180 ? 360 - diff : diff;
-    points.push({ true: trueAngle, guess });
-    saveAndRender();
-    guessForm.reset();
-    newTrial();
+    const guess=parseFloat(guessInput.value.trim());if(isNaN(guess)) return;
+    const diff=Math.abs(angle1-angle2);
+    const trueAngle=diff>180?360-diff:diff;
+    points.push({true:trueAngle,guess});
+    saveAndRender();guessForm.reset();newTrial();
   });
 
-  function newTrial() {
-    [angle1, angle2] = pickTwoAngles();
-    resizeCanvas();
-  }
-
-  // initial render/load
-  saveAndRender();
-  newTrial();
+  function newTrial(){[angle1,angle2]=pickTwoAngles();resizeCanvas();}
+  saveAndRender();newTrial();
   </script>
 </body>
 </html>
