@@ -18,7 +18,7 @@ function dayMonthYearDifference(startDate, endDate){
     };
 }
 
-const startDate = new Date('2019-04-12T00:00:00Z'); 
+const startDate = new Date('2025-10-22T22:00:00Z'); 
 
 function calculateAndDisplayTime() {
     const now = new Date();
