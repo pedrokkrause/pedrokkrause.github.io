@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Barycenter</title>
+    <style>
+        :root {
+            --bg-color: #1e1e2f;
+            --text-color: #f8f8f2;
+            --container-bg: #282a36;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .main-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .game-container, .stats-container {
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .game-container { max-width: 400px; }
+        .stats-container { max-width: 300px; }
+
+        h1, h2 { margin-top: 0; }
+        h1 { font-size: 1.5rem; }
+        h2 { font-size: 1.3rem; color: #50fa7b; }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        #physics-board {
+            width: 100%;
+            height: 250px;
+            background-color: #191a21;
+            border-radius: 8px;
+            border: 2px solid #444;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            position: relative;
+            cursor: crosshair;
+            overflow: hidden;
+        }
+
+        .weight {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.9;
+            box-shadow: inset -2px -2px 6px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.4);
+            pointer-events: none; /* Let clicks pass through to the board */
+        }
+
+        /* The user's guess marker */
+        #guess-marker {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f8f8f2;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 0 4px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        #guess-marker::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 4px; height: 4px;
+            background: #f8f8f2;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* The true center of mass marker */
+        #true-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ff5555;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 0 8px rgba(255, 85, 85, 0.6);
+            z-index: 5;
+        }
+        #true-marker::before, #true-marker::after {
+            content: '';
+            position: absolute;
+            background: #ff5555;
+        }
+        #true-marker::before { top: 50%; left: -4px; right: -4px; height: 2px; transform: translateY(-50%); }
+        #true-marker::after { left: 50%; top: -4px; bottom: -4px; width: 2px; transform: translateX(-50%); }
+
+        .true-label {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: #ff5555;
+            background: rgba(0,0,0,0.8);
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:active { transform: scale(0.97); }
+
+        #guess-btn { background-color: #bd93f9; color: #282a36; }
+        #guess-btn:hover { background-color: #d6b4ff; }
+        #guess-btn:disabled { background-color: #6272a4; cursor: not-allowed; transform: none; }
+
+        #next-btn { background-color: #50fa7b; color: #282a36; display: none; }
+        #next-btn:hover { background-color: #69ff94; }
+
+        #results {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-height: 1.5em;
+        }
+
+        /* Stats Section */
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            background: rgba(0,0,0,0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        .stat-val { font-weight: bold; color: #bd93f9; }
+
+        .score-list-container {
+            margin-top: 20px;
+            border-top: 2px solid #444;
+            padding-top: 15px;
+            text-align: left;
+        }
+
+        .score-list-container h3 {
+            font-size: 1rem;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #50fa7b;
+        }
+
+        #score-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #score-list li {
+            background: #444;
+            margin-bottom: 5px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #score-list::-webkit-scrollbar { width: 6px; }
+        #score-list::-webkit-scrollbar-track { background: #282a36; }
+        #score-list::-webkit-scrollbar-thumb { background: #6272a4; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <div class="game-container">
+            <h1>Find the Barycenter</h1>
+            <p style="font-size: 0.85rem; color: #8be9fd; margin-top: -10px; margin-bottom: 15px;">Click to place the center of mass</p>
+
+            <div class="canvas-container">
+                <div id="physics-board">
+                    <div id="guess-marker"></div>
+                    <div id="true-marker"><div class="true-label">True Center</div></div>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button id="guess-btn" disabled>Submit Guess</button>
+                <button id="next-btn">Next Setup</button>
+            </div>
+
+            <div id="results"></div>
+        </div>
+
+        <div class="stats-container">
+            <h2>Your Stats</h2>
+
+            <div class="stat-item">
+                <span>Rounds:</span>
+                <span id="rounds-val" class="stat-val" style="color: #f8f8f2;">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Average:</span>
+                <span id="avg-val" class="stat-val">--</span>
+            </div>
+            <div class="stat-item">
+                <span>Std Dev:</span>
+                <span id="sd-val" class="stat-val" style="color: #ffb86c;">--</span>
+            </div>
+
+            <div class="score-list-container">
+                <h3>History</h3>
+                <ul id="score-list">
+                    <li style="justify-content: center; color: #888; background: transparent;">No scores yet</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trueCoMPctX = 0;
+        let trueCoMPctY = 0;
+        let userGuessPctX = null;
+        let userGuessPctY = null;
+        let scoreHistory = [];
+        let isRoundActive = true;
+
+        // ---- AUDIO ENGINE ----
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playTone(freq, type, duration, vol) {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function playPopSound() {
+            initAudio();
+            playTone(600, 'sine', 0.05, 0.05);
+            setTimeout(() => playTone(800, 'sine', 0.05, 0.05), 50);
+        }
+
+        function playRevealSound() {
+            initAudio();
+            const t = audioCtx.currentTime;
+            const freqs = [261.63, 329.63, 392.00, 523.25]; // C major chord
+            freqs.forEach((f, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = f;
+                gain.gain.setValueAtTime(0.1, t + i * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.06 + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t + i * 0.06);
+                osc.stop(t + i * 0.06 + 0.3);
+            });
+        }
+
+        function playNextSound() {
+            initAudio();
+            playTone(300, 'square', 0.1, 0.03);
+            setTimeout(() => playTone(450, 'square', 0.15, 0.03), 80);
+        }
+        // ----------------------
+
+        // DOM Elements
+        const board = document.getElementById('physics-board');
+        const guessMarker = document.getElementById('guess-marker');
+        const trueMarker = document.getElementById('true-marker');
+        const guessBtn = document.getElementById('guess-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const results = document.getElementById('results');
+        const roundsVal = document.getElementById('rounds-val'), avgVal = document.getElementById('avg-val'), sdVal = document.getElementById('sd-val'), scoreList = document.getElementById('score-list');
+
+        function getRandomColor() {
+            const colors = ['#ff5555', '#50fa7b', '#8be9fd', '#bd93f9', '#ffb86c', '#f1fa8c'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function doesOverlap(c1, c2) {
+            const dx = c1.x - c2.x;
+            const dy = c1.y - c2.y;
+            const distanceSq = dx * dx + dy * dy;
+            const minDistance = (c1.size/2) + (c2.size/2) + 2; // +2px buffer
+            return distanceSq < (minDistance * minDistance);
+        }
+
+        function generatePattern() {
+            // Clean up old weights, but keep markers
+            document.querySelectorAll('.weight').forEach(el => el.remove());
+
+            const boardRect = board.getBoundingClientRect();
+            const width = boardRect.width;
+            const height = boardRect.height;
+
+            const numWeights = Math.floor(Math.random() * 4) + 3; // 3 to 6 weights
+            const placedWeights = [];
+
+            let sumMassX = 0;
+            let sumMassY = 0;
+            let totalMass = 0;
+
+            for(let i = 0; i < numWeights; i++) {
+                let placed = false;
+                let attempts = 0;
+
+                while (!placed && attempts < 50) {
+                    // Larger size range (20px to 80px diameter)
+                    const size = Math.floor(Math.random() * 60) + 20;
+                    const radius = size / 2;
+
+                    let x = Math.random() * (width - size);
+                    let y = Math.random() * (height - size);
+
+                    const candidate = { x: x + radius, y: y + radius, size: size };
+
+                    let overlapFound = false;
+                    for (const existing of placedWeights) {
+                        if (doesOverlap(candidate, existing)) { overlapFound = true; break; }
+                    }
+
+                    if (!overlapFound) {
+                        // Create visual element
+                        const dot = document.createElement('div');
+                        dot.classList.add('weight');
+                        dot.style.width = `${size}px`;
+                        dot.style.height = `${size}px`;
+
+                        // Physics calculations: Mass is proportional to Area (Radius squared)
+                        const mass = radius * radius;
+
+                        // Convert exact center points to percentages for responsive math
+                        const pctX = (candidate.x / width) * 100;
+                        const pctY = (candidate.y / height) * 100;
+
+                        dot.style.left = `${(x / width) * 100}%`;
+                        dot.style.top = `${(y / height) * 100}%`;
+                        dot.style.backgroundColor = getRandomColor();
+
+                        board.appendChild(dot);
+                        placedWeights.push(candidate);
+
+                        // Accumulate for Center of Mass
+                        sumMassX += pctX * mass;
+                        sumMassY += pctY * mass;
+                        totalMass += mass;
+
+                        placed = true;
+                    } else {
+                        attempts++;
+                    }
+                }
+            }
+
+            // Calculate final True Center of Mass (in percentages)
+            trueCoMPctX = sumMassX / totalMass;
+            trueCoMPctY = sumMassY / totalMass;
+        }
+
+        function placeGuess(event) {
+            if (!isRoundActive) return;
+
+            const rect = board.getBoundingClientRect();
+            // Calculate percentage position of the click
+            userGuessPctX = ((event.clientX - rect.left) / rect.width) * 100;
+            userGuessPctY = ((event.clientY - rect.top) / rect.height) * 100;
+
+            // Clamp strictly to 0-100%
+            userGuessPctX = Math.max(0, Math.min(100, userGuessPctX));
+            userGuessPctY = Math.max(0, Math.min(100, userGuessPctY));
+
+            guessMarker.style.left = `${userGuessPctX}%`;
+            guessMarker.style.top = `${userGuessPctY}%`;
+            guessMarker.style.display = 'block';
+
+            guessBtn.disabled = false;
+            playPopSound();
+        }
+
+        function updateStatsUI() {
+            if (scoreHistory.length === 0) return;
+
+            const n = scoreHistory.length;
+            const sum = scoreHistory.reduce((a, b) => a + b, 0);
+            const avg = sum / n;
+            const variance = scoreHistory.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / n;
+            const sd = Math.sqrt(variance);
+
+            roundsVal.textContent = n;
+            avgVal.textContent = `${avg.toFixed(1)}%`;
+            sdVal.textContent = `±${sd.toFixed(1)}%`;
+
+            scoreList.innerHTML = '';
+            for (let i = scoreHistory.length - 1; i >= 0; i--) {
+                const li = document.createElement('li');
+                const roundSpan = document.createElement('span');
+                roundSpan.textContent = `Round ${i + 1}`;
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = `${scoreHistory[i].toFixed(1)}%`;
+                scoreSpan.style.color = '#bd93f9';
+                scoreSpan.style.fontWeight = 'bold';
+
+                li.appendChild(roundSpan);
+                li.appendChild(scoreSpan);
+                scoreList.appendChild(li);
+            }
+        }
+
+        function handleGuess() {
+            if (userGuessPctX === null) return;
+            isRoundActive = false;
+            guessBtn.disabled = true;
+
+            // Show true marker
+            trueMarker.style.left = `${trueCoMPctX}%`;
+            trueMarker.style.top = `${trueCoMPctY}%`;
+            trueMarker.style.display = 'block';
+
+            // Calculate Accuracy
+            // We calculate pixel distance at current resolution to be fair
+            const rect = board.getBoundingClientRect();
+            const guessPxX = (userGuessPctX / 100) * rect.width;
+            const guessPxY = (userGuessPctY / 100) * rect.height;
+            const truePxX = (trueCoMPctX / 100) * rect.width;
+            const truePxY = (trueCoMPctY / 100) * rect.height;
+
+            const dx = guessPxX - truePxX;
+            const dy = guessPxY - truePxY;
+            const distance = Math.sqrt(dx*dx + dy*dy);
+
+            // Maximum reasonable miss distance (half the diagonal of the board)
+            const maxDistance = Math.sqrt(rect.width**2 + rect.height**2) / 2;
+
+            let accuracy = Math.max(0, 100 - ((distance / maxDistance) * 100));
+
+            scoreHistory.push(accuracy);
+            updateStatsUI();
+
+            results.innerHTML = `Accuracy: <span style="color: #bd93f9;">${accuracy.toFixed(1)}%</span>`;
+            nextBtn.style.display = 'block';
+
+            playRevealSound();
+        }
+
+        function resetGame() {
+            isRoundActive = true;
+            userGuessPctX = null;
+            userGuessPctY = null;
+
+            guessMarker.style.display = 'none';
+            trueMarker.style.display = 'none';
+            guessBtn.disabled = true;
+            nextBtn.style.display = 'none';
+            results.textContent = '';
+
+            requestAnimationFrame(() => {
+                 generatePattern();
+            });
+
+            if(scoreHistory.length > 0) {
+                playNextSound();
+            }
+        }
+
+        // Event Listeners
+        board.addEventListener('click', placeGuess);
+        guessBtn.addEventListener('click', handleGuess);
+        nextBtn.addEventListener('click', resetGame);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', resetGame);
+    </script>
+</body>
+</html>
