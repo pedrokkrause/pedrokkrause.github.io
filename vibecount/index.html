@@ -292,11 +292,11 @@
 
     <script>
         let targetAmount;
-        let actualPlacedAmount; // Track how many we actually managed to place without overlap
+        let actualPlacedAmount;
         let scoreHistory = [];
         const MIN_CIRCLES = 10;
         const MAX_CIRCLES = 300;
-        const BUFFER = 2; // Pixels of space between circles
+        const BUFFER = 2;
 
         // ---- AUDIO ENGINE ----
         const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -330,7 +330,7 @@
         function playRevealSound() {
             initAudio();
             const t = audioCtx.currentTime;
-            const freqs = [392.00, 493.88, 587.33, 783.99]; // G chord
+            const freqs = [392.00, 493.88, 587.33, 783.99];
 
             freqs.forEach((f, i) => {
                 const osc = audioCtx.createOscillator();
@@ -367,11 +367,9 @@
             return colors[Math.floor(Math.random() * colors.length)];
         }
 
-        // Checks if two circles overlap using distance between centers
         function doesOverlap(c1, c2) {
             const dx = c1.centerX - c2.centerX;
             const dy = c1.centerY - c2.centerY;
-            // Calculate distance squared to avoid slow Math.sqrt()
             const distanceSq = dx * dx + dy * dy;
             const minDistance = c1.radius + c2.radius + BUFFER;
             return distanceSq < (minDistance * minDistance);
@@ -386,21 +384,18 @@
             const placedCirclesData = [];
 
             let placedCount = 0;
-            const maxAttemptsPerCircle = 50; // Prevent infinite loops if it gets too crowded
+            const maxAttemptsPerCircle = 50;
 
             for(let i = 0; i < targetAmount; i++) {
                 let placed = false;
                 let attempts = 0;
 
                 while (!placed && attempts < maxAttemptsPerCircle) {
-                    // 1. Generate candidate properties
-                    const size = Math.floor(Math.random() * 11) + 7; // Slightly larger base size (7-17px)
+                    const size = Math.floor(Math.random() * 11) + 7;
                     const radius = size / 2;
-                    // Ensure positions stay strictly within bounds (accounting for size)
                     let x = Math.random() * (canvasWidth - size);
                     let y = Math.random() * (canvasHeight - size);
 
-                    // Ensure they don't spawn right on the edge
                     x = Math.max(BUFFER, Math.min(x, canvasWidth - size - BUFFER));
                     y = Math.max(BUFFER, Math.min(y, canvasHeight - size - BUFFER));
 
@@ -413,7 +408,6 @@
                         size: size
                     };
 
-                    // 2. Check collision with all previously placed circles
                     let overlapFound = false;
                     for (const existingCircle of placedCirclesData) {
                         if (doesOverlap(candidate, existingCircle)) {
@@ -422,14 +416,16 @@
                         }
                     }
 
-                    // 3. Place or Reject
                     if (!overlapFound) {
                         const dot = document.createElement('div');
                         dot.classList.add('dot');
                         dot.style.width = `${candidate.size}px`;
                         dot.style.height = `${candidate.size}px`;
-                        dot.style.left = `${candidate.x}px`;
-                        dot.style.top = `${candidate.y}px`;
+
+                        // FIX: Use percentages instead of pixels so they scale dynamically!
+                        dot.style.left = `${(candidate.x / canvasWidth) * 100}%`;
+                        dot.style.top = `${(candidate.y / canvasHeight) * 100}%`;
+
                         dot.style.backgroundColor = getRandomColor();
                         canvas.appendChild(dot);
 
@@ -441,7 +437,6 @@
                     }
                 }
             }
-            // Update the target to the actual number we managed to fit
             actualPlacedAmount = placedCount;
         }
 
@@ -454,7 +449,6 @@
 
         function setMarkerPosition(marker, trueValue) {
             const percentage = ((trueValue - MIN_CIRCLES) / (MAX_CIRCLES - MIN_CIRCLES)) * 100;
-            // Clamp percentage between 0 and 100 just in case
             const clampedPercentage = Math.max(0, Math.min(100, percentage));
             marker.style.left = `calc(${clampedPercentage}% + (${8 - clampedPercentage * 0.16}px))`;
             marker.style.display = 'block';
@@ -493,7 +487,6 @@
             initAudio();
             slider.disabled = guessBtn.disabled = true;
 
-            // Use actualPlacedAmount instead of the original targetAmount
             actualText.textContent = `(Actual: ${actualPlacedAmount})`;
             actualText.style.display = 'inline';
 
@@ -522,7 +515,6 @@
             results.textContent = '';
             nextBtn.style.display = 'none';
 
-            // Wait for layout to stabilize to get accurate canvas dimensions
             requestAnimationFrame(() => {
                  generatePattern();
             });
@@ -538,17 +530,9 @@
         guessBtn.addEventListener('click', handleGuess);
         nextBtn.addEventListener('click', resetGame);
 
-        let resizeTimeout;
-        window.addEventListener('resize', () => {
-             clearTimeout(resizeTimeout);
-             resizeTimeout = setTimeout(() => {
-                 if (!guessBtn.disabled) {
-                     generatePattern();
-                 }
-             }, 200);
-        });
+        // FIX: Completely removed the window resize event listener.
+        // We don't need it anymore because the CSS percentages handle rescaling natively!
 
-        // Initialize after DOM load to ensure container dimensions are ready
         document.addEventListener('DOMContentLoaded', resetGame);
     </script>
 </body>
