@@ -7,6 +7,9 @@ Aqui colocarei alguns projetos interessantes que fiz ao longo do tempo. Basicame
 
 [Angle Intuition tester](https://pedrokkrause.github.io/angle_intuition)
 
-[Guess the RGB!](https://pedrokkrause.github.io/guessRGB)
+[Guess the RGB](https://pedrokkrause.github.io/guessRGB)
 
 [Vibe Counting](https://pedrokkrause.github.io/vibecount)
+
+[Find the Barycenter](https://pedrokkrause.github.io/barycenter)
+
