@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vibe Counting</title>
+    <style>
+        :root {
+            --bg-color: #1e1e2f;
+            --text-color: #f8f8f2;
+            --container-bg: #282a36;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .main-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .game-container, .stats-container {
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .game-container { max-width: 400px; }
+        .stats-container { max-width: 300px; }
+
+        h1, h2 { margin-top: 0; }
+        h1 { font-size: 1.5rem; }
+        h2 { font-size: 1.3rem; color: #ffb86c; }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 25px;
+        }
+
+        #circle-canvas {
+            width: 100%;
+            height: 250px;
+            background-color: #191a21;
+            border-radius: 8px;
+            border: 2px solid #444;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            position: relative;
+            /* overflow: hidden; Removed to ensure dots don't get clipped at edges during calculation */
+        }
+
+        .dot {
+            position: absolute;
+            border-radius: 50%;
+            /* Opacity increased to 1.0 for a cleaner look since they don't overlap */
+            opacity: 1.0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .slider-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #8be9fd;
+        }
+
+        .slider-wrapper {
+            position: relative;
+            width: 100%;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #444;
+            outline: none;
+            z-index: 2;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
+        }
+
+        input[type="range"]::-webkit-slider-thumb { background: #8be9fd; }
+
+        .actual-marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 24px;
+            background-color: #ff5555;
+            border: 1px solid #000;
+            border-radius: 2px;
+            z-index: 1;
+            display: none;
+            pointer-events: none;
+        }
+
+        .actual-marker::after {
+            content: "True";
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            color: #ff5555;
+            background: #000;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:active { transform: scale(0.97); }
+
+        #guess-btn { background-color: #ffb86c; color: #282a36; }
+        #guess-btn:hover { background-color: #ffc996; }
+        #guess-btn:disabled { background-color: #6272a4; cursor: not-allowed; transform: none; }
+
+        #next-btn { background-color: #50fa7b; color: #282a36; display: none; }
+        #next-btn:hover { background-color: #69ff94; }
+
+        #results {
+            margin-top: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-height: 1.5em;
+        }
+
+        .actual-values-text {
+            font-size: 0.8rem;
+            color: #ff5555;
+            display: none;
+        }
+
+        /* Stats Section */
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            background: rgba(0,0,0,0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+        }
+
+        .stat-val { font-weight: bold; color: #8be9fd; }
+
+        .score-list-container {
+            margin-top: 20px;
+            border-top: 2px solid #444;
+            padding-top: 15px;
+            text-align: left;
+        }
+
+        .score-list-container h3 {
+            font-size: 1rem;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #ffb86c;
+        }
+
+        #score-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        #score-list li {
+            background: #444;
+            margin-bottom: 5px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #score-list::-webkit-scrollbar { width: 6px; }
+        #score-list::-webkit-scrollbar-track { background: #282a36; }
+        #score-list::-webkit-scrollbar-thumb { background: #6272a4; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <div class="game-container">
+            <h1>Guess the Amount!</h1>
+
+            <div class="canvas-container">
+                <div id="circle-canvas"></div>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header">
+                    <span>Circles</span>
+                    <span><span id="guess-val">155</span> <span id="actual-text" class="actual-values-text"></span></span>
+                </div>
+                <div class="slider-wrapper">
+                    <input type="range" id="guess-slider" min="10" max="300" value="155">
+                    <div id="actual-marker" class="actual-marker"></div>
+                </div>
+            </div>
+
+            <div class="buttons">
+                <button id="guess-btn">Submit Guess</button>
+                <button id="next-btn">Next Pattern</button>
+            </div>
+
+            <div id="results"></div>
+        </div>
+
+        <div class="stats-container">
+            <h2>Your Stats</h2>
+
+            <div class="stat-item">
+                <span>Rounds:</span>
+                <span id="rounds-val" class="stat-val" style="color: #f8f8f2;">0</span>
+            </div>
+            <div class="stat-item">
+                <span>Average:</span>
+                <span id="avg-val" class="stat-val">--</span>
+            </div>
+            <div class="stat-item">
+                <span>Std Dev:</span>
+                <span id="sd-val" class="stat-val" style="color: #bd93f9;">--</span>
+            </div>
+
+            <div class="score-list-container">
+                <h3>History</h3>
+                <ul id="score-list">
+                    <li style="justify-content: center; color: #888; background: transparent;">No scores yet</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let targetAmount;
+        let actualPlacedAmount; // Track how many we actually managed to place without overlap
+        let scoreHistory = [];
+        const MIN_CIRCLES = 10;
+        const MAX_CIRCLES = 300;
+        const BUFFER = 2; // Pixels of space between circles
+
+        // ---- AUDIO ENGINE ----
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playTone(freq, type, duration, vol) {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function playSliderTick(val) {
+            initAudio();
+            const freq = 200 + ((val - MIN_CIRCLES) / (MAX_CIRCLES - MIN_CIRCLES)) * 400;
+            playTone(freq, 'sine', 0.1, 0.05);
+        }
+
+        function playRevealSound() {
+            initAudio();
+            const t = audioCtx.currentTime;
+            const freqs = [392.00, 493.88, 587.33, 783.99]; // G chord
+
+            freqs.forEach((f, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = f;
+                gain.gain.setValueAtTime(0.1, t + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.08 + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t + i * 0.08);
+                osc.stop(t + i * 0.08 + 0.3);
+            });
+        }
+
+        function playNextSound() {
+            initAudio();
+            playTone(300, 'square', 0.1, 0.03);
+            setTimeout(() => playTone(450, 'square', 0.15, 0.03), 80);
+        }
+        // ----------------------
+
+        // DOM Elements
+        const canvas = document.getElementById('circle-canvas');
+        const slider = document.getElementById('guess-slider');
+        const guessVal = document.getElementById('guess-val');
+        const actualMarker = document.getElementById('actual-marker');
+        const actualText = document.getElementById('actual-text');
+        const guessBtn = document.getElementById('guess-btn'), nextBtn = document.getElementById('next-btn'), results = document.getElementById('results');
+        const roundsVal = document.getElementById('rounds-val'), avgVal = document.getElementById('avg-val'), sdVal = document.getElementById('sd-val'), scoreList = document.getElementById('score-list');
+
+        function getRandomColor() {
+            const colors = ['#ff5555', '#50fa7b', '#8be9fd', '#bd93f9', '#ffb86c', '#f1fa8c'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Checks if two circles overlap using distance between centers
+        function doesOverlap(c1, c2) {
+            const dx = c1.centerX - c2.centerX;
+            const dy = c1.centerY - c2.centerY;
+            // Calculate distance squared to avoid slow Math.sqrt()
+            const distanceSq = dx * dx + dy * dy;
+            const minDistance = c1.radius + c2.radius + BUFFER;
+            return distanceSq < (minDistance * minDistance);
+        }
+
+        function generatePattern() {
+            canvas.innerHTML = '';
+            targetAmount = Math.floor(Math.random() * (MAX_CIRCLES - MIN_CIRCLES + 1)) + MIN_CIRCLES;
+
+            const canvasWidth = canvas.clientWidth;
+            const canvasHeight = canvas.clientHeight;
+            const placedCirclesData = [];
+
+            let placedCount = 0;
+            const maxAttemptsPerCircle = 50; // Prevent infinite loops if it gets too crowded
+
+            for(let i = 0; i < targetAmount; i++) {
+                let placed = false;
+                let attempts = 0;
+
+                while (!placed && attempts < maxAttemptsPerCircle) {
+                    // 1. Generate candidate properties
+                    const size = Math.floor(Math.random() * 11) + 7; // Slightly larger base size (7-17px)
+                    const radius = size / 2;
+                    // Ensure positions stay strictly within bounds (accounting for size)
+                    let x = Math.random() * (canvasWidth - size);
+                    let y = Math.random() * (canvasHeight - size);
+
+                    // Ensure they don't spawn right on the edge
+                    x = Math.max(BUFFER, Math.min(x, canvasWidth - size - BUFFER));
+                    y = Math.max(BUFFER, Math.min(y, canvasHeight - size - BUFFER));
+
+                    const candidate = {
+                        x: x,
+                        y: y,
+                        centerX: x + radius,
+                        centerY: y + radius,
+                        radius: radius,
+                        size: size
+                    };
+
+                    // 2. Check collision with all previously placed circles
+                    let overlapFound = false;
+                    for (const existingCircle of placedCirclesData) {
+                        if (doesOverlap(candidate, existingCircle)) {
+                            overlapFound = true;
+                            break;
+                        }
+                    }
+
+                    // 3. Place or Reject
+                    if (!overlapFound) {
+                        const dot = document.createElement('div');
+                        dot.classList.add('dot');
+                        dot.style.width = `${candidate.size}px`;
+                        dot.style.height = `${candidate.size}px`;
+                        dot.style.left = `${candidate.x}px`;
+                        dot.style.top = `${candidate.y}px`;
+                        dot.style.backgroundColor = getRandomColor();
+                        canvas.appendChild(dot);
+
+                        placedCirclesData.push(candidate);
+                        placed = true;
+                        placedCount++;
+                    } else {
+                        attempts++;
+                    }
+                }
+            }
+            // Update the target to the actual number we managed to fit
+            actualPlacedAmount = placedCount;
+        }
+
+        function updateSliderValue(e) {
+            guessVal.textContent = slider.value;
+            if (e && e.target) {
+                playSliderTick(e.target.value);
+            }
+        }
+
+        function setMarkerPosition(marker, trueValue) {
+            const percentage = ((trueValue - MIN_CIRCLES) / (MAX_CIRCLES - MIN_CIRCLES)) * 100;
+            // Clamp percentage between 0 and 100 just in case
+            const clampedPercentage = Math.max(0, Math.min(100, percentage));
+            marker.style.left = `calc(${clampedPercentage}% + (${8 - clampedPercentage * 0.16}px))`;
+            marker.style.display = 'block';
+        }
+
+        function updateStatsUI() {
+            if (scoreHistory.length === 0) return;
+
+            const n = scoreHistory.length;
+            const sum = scoreHistory.reduce((a, b) => a + b, 0);
+            const avg = sum / n;
+            const variance = scoreHistory.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / n;
+            const sd = Math.sqrt(variance);
+
+            roundsVal.textContent = n;
+            avgVal.textContent = `${avg.toFixed(1)}%`;
+            sdVal.textContent = `±${sd.toFixed(1)}%`;
+
+            scoreList.innerHTML = '';
+            for (let i = scoreHistory.length - 1; i >= 0; i--) {
+                const li = document.createElement('li');
+                const roundSpan = document.createElement('span');
+                roundSpan.textContent = `Round ${i + 1}`;
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = `${scoreHistory[i].toFixed(1)}%`;
+                scoreSpan.style.color = '#8be9fd';
+                scoreSpan.style.fontWeight = 'bold';
+
+                li.appendChild(roundSpan);
+                li.appendChild(scoreSpan);
+                scoreList.appendChild(li);
+            }
+        }
+
+        function handleGuess() {
+            initAudio();
+            slider.disabled = guessBtn.disabled = true;
+
+            // Use actualPlacedAmount instead of the original targetAmount
+            actualText.textContent = `(Actual: ${actualPlacedAmount})`;
+            actualText.style.display = 'inline';
+
+            setMarkerPosition(actualMarker, actualPlacedAmount);
+
+            const guess = parseInt(slider.value);
+            const difference = Math.abs(actualPlacedAmount - guess);
+
+            let accuracy = Math.max(0, 100 - ((difference / actualPlacedAmount) * 100));
+
+            scoreHistory.push(accuracy);
+            updateStatsUI();
+
+            results.innerHTML = `Accuracy: <span style="color: #8be9fd;">${accuracy.toFixed(1)}%</span>`;
+            nextBtn.style.display = 'block';
+
+            playRevealSound();
+        }
+
+        function resetGame() {
+            slider.disabled = guessBtn.disabled = false;
+            actualMarker.style.display = 'none';
+            actualText.style.display = 'none';
+
+            slider.value = Math.floor((MAX_CIRCLES - MIN_CIRCLES) / 2) + MIN_CIRCLES;
+            results.textContent = '';
+            nextBtn.style.display = 'none';
+
+            // Wait for layout to stabilize to get accurate canvas dimensions
+            requestAnimationFrame(() => {
+                 generatePattern();
+            });
+
+            updateSliderValue();
+
+            if(scoreHistory.length > 0) {
+                playNextSound();
+            }
+        }
+
+        slider.addEventListener('input', updateSliderValue);
+        guessBtn.addEventListener('click', handleGuess);
+        nextBtn.addEventListener('click', resetGame);
+
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+             clearTimeout(resizeTimeout);
+             resizeTimeout = setTimeout(() => {
+                 if (!guessBtn.disabled) {
+                     generatePattern();
+                 }
+             }, 200);
+        });
+
+        // Initialize after DOM load to ensure container dimensions are ready
+        document.addEventListener('DOMContentLoaded', resetGame);
+    </script>
+</body>
+</html>
