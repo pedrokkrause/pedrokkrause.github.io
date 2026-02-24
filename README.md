@@ -1,4 +1,4 @@
-Aqui colocarei alguns projetos interessantes que fiz ao longo do tempo.
+Aqui colocarei alguns projetos interessantes que fiz ao longo do tempo. Basicamente todos são adaptações/traduções, feitas com ajuda de IA, para HTML+JavaScript de projetos que originalmente escrevi em Python.
 
 ## Sites
 [Calendário Lunar](https://pedrokkrause.github.io/lunarCalendar/)
