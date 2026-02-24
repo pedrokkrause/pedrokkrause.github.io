@@ -1,5 +1,3 @@
-# pedrokkrause.github.io
-
 Aqui colocarei alguns projetos interessantes que fiz ao longo do tempo.
 
 ## Sites
