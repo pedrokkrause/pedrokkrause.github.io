@@ -1,7 +1,7 @@
 A collection of small projects I've built over time. Most are HTML+JavaScript adaptations, made with the help of AI, of projects I originally wrote in Python.
 
 ## Sites
-🌙 [Lunar Calendar](https://pedrokkrause.github.io/lunarCalendar/) — see the current moon phase and brightness at a glance.
+🌙 [Lunar Calendar](https://pedrokkrause.github.io/lunarCalendar/) — a custom 17-month calendar synced to the Moon's cycle, showing today's date in that system.
 
 🎛️ [Derivative Control](https://pedrokkrause.github.io/derivativecontrol) — steer a ball by its position, velocity, acceleration, or jerk and feel the difference.
 
