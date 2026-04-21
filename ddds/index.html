@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DDDs do Brasil</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+  <aside id="hud">
+    <div id="controls">
+      <label>
+        Modo
+        <select id="mode">
+          <option value="quiz">Quizz</option>
+          <option value="learn">Aprender</option>
+        </select>
+      </label>
+      <label>
+        Filtro
+        <select id="region-filter">
+          <option value="all">Brasil todo</option>
+          <optgroup label="Grupo (1º dígito)">
+            <option value="digit:1">1x — SP</option>
+            <option value="digit:2">2x — RJ / ES</option>
+            <option value="digit:3">3x — MG</option>
+            <option value="digit:4">4x — PR / SC</option>
+            <option value="digit:5">5x — RS</option>
+            <option value="digit:6">6x — Centro-Oeste + RO/AC/TO</option>
+            <option value="digit:7">7x — BA / SE</option>
+            <option value="digit:8">8x — Nordeste</option>
+            <option value="digit:9">9x — Norte + MA</option>
+          </optgroup>
+          <optgroup label="Região geográfica">
+            <option value="region:Norte">Norte</option>
+            <option value="region:Nordeste">Nordeste</option>
+            <option value="region:Centro-Oeste">Centro-Oeste</option>
+            <option value="region:Sudeste">Sudeste</option>
+            <option value="region:Sul">Sul</option>
+          </optgroup>
+        </select>
+      </label>
+    </div>
+
+    <div id="quiz-panel">
+      <div id="score">0/67</div>
+      <div id="prompt-label">Encontre o DDD</div>
+      <div id="prompt">--</div>
+      <div id="status"></div>
+      <button id="restart" hidden>Jogar novamente</button>
+    </div>
+
+    <div id="learn-panel" hidden>
+      <div id="learn-hint">Passe o mouse (ou toque) em uma região</div>
+      <div id="learn-ddd">--</div>
+      <div id="learn-city">—</div>
+      <div id="learn-state">—</div>
+    </div>
+
+    <label id="toggle-color">
+      <input type="checkbox" id="uniform-color" />
+      Mapa em cor única
+    </label>
+
+    <div id="hint">Botão direito + arrastar para mover. Roda do mouse para ampliar.</div>
+  </aside>
+  <div id="map-container">
+    <div id="map-viewport"></div>
+  </div>
+</div>
+<audio id="sfx-correct" src="correct.mp3" preload="auto"></audio>
+<audio id="sfx-wrong" src="wrong.mp3" preload="auto"></audio>
+<audio id="sfx-end" src="end.mp3" preload="auto"></audio>
+<script src="script.js" defer></script>
+</body>
+</html>
