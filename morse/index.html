@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Morse Code PCB</title>
+    <style>
+        :root {
+            --pcb-surface: #173b27;
+            --pcb-holes: #11261a;
+            --copper: #b59d6a;
+            --silk-text: #e0ded0;
+            --led-off: #1a1a1a;
+            --led-active: #4caf50;
+            --led-glow: #81c784;
+        }
+
+        body {
+            background-color: #1e1e24;
+            color: var(--silk-text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+
+        /* PCB Board Container */
+        #pcb-surface {
+            background-color: var(--pcb-surface);
+            background-image: radial-gradient(var(--pcb-holes) 1px, transparent 1px);
+            background-size: 20px 20px;
+            border: 4px solid var(--copper);
+            border-radius: 12px;
+            width: 560px;
+            height: 600px;
+            position: relative;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+
+        /* Top Text */
+        .header-text {
+            position: absolute;
+            top: 15px; /* Moved higher */
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--silk-text);
+            letter-spacing: 2px;
+            transform: translateX(-50%);
+            z-index: 3;
+        }
+
+        /* SVG Traces Background */
+        #traces {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .trace {
+            stroke: var(--silk-text);
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+
+        /* Nodes & Pads */
+        .node {
+            position: absolute;
+            z-index: 2;
+            width: 0;
+            height: 0;
+        }
+
+        .pad {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: var(--led-off);
+            border: 2px solid var(--copper);
+            transition: all 0.1s ease;
+            z-index: 2;
+        }
+
+        .circ { width: 22px; height: 22px; border-radius: 50%; }
+        .rect-horiz { width: 34px; height: 18px; border-radius: 4px; }
+        .rect-vert { width: 18px; height: 34px; border-radius: 4px; }
+
+        /* Silkscreen Labels attached to nodes */
+        .lbl {
+            position: absolute;
+            color: var(--silk-text);
+            font-size: 16px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .up { bottom: 18px; transform: translateX(-50%); }
+        .down { top: 18px; transform: translateX(-50%); }
+        .left { right: 22px; top: -11px; }
+        .right { left: 22px; top: -11px; }
+
+        /* Active Path Glow */
+        .node.active .pad {
+            background-color: var(--led-active);
+            box-shadow: 0 0 15px var(--led-glow);
+            border-color: #a5d6a7;
+        }
+
+        /* Controls Output */
+        #controls {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        #telegraph-btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background-color: var(--copper);
+            color: #1a1a1a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            transition: transform 0.1s, background-color 0.1s;
+        }
+
+        #telegraph-btn:active, #telegraph-btn.pressed {
+            transform: translateY(2px);
+            background-color: #9e8759;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        #current-input {
+            font-size: 2rem;
+            letter-spacing: 5px;
+            color: var(--led-active);
+            font-weight: bold;
+            height: 40px;
+        }
+
+        #decoded-word {
+            font-size: 1.5rem;
+            color: #aaa;
+            letter-spacing: 3px;
+            min-height: 30px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="pcb-surface">
+        <div class="header-text" style="left: 160px;">MORSE</div>
+        <div class="header-text" style="left: 400px;">CODE</div>
+
+        <svg id="traces">
+            <line x1="90" y1="80" x2="540" y2="80" class="trace" />
+
+            <path d="M 280,80 L 280,45 M 280,45 L 265,15 L 295,15 Z" class="trace" />
+
+            <line x1="230" y1="80" x2="230" y2="540" class="trace" /> <line x1="160" y1="80" x2="160" y2="250" class="trace" /> <line x1="330" y1="80" x2="330" y2="540" class="trace" /> <line x1="400" y1="80" x2="400" y2="280" class="trace" /> <line x1="470" y1="80" x2="470" y2="170" class="trace" /> <line x1="160" y1="170" x2="90" y2="170" class="trace" /> <line x1="230" y1="310" x2="90" y2="310" class="trace" /> <line x1="230" y1="460" x2="160" y2="460" class="trace" /> <line x1="330" y1="310" x2="470" y2="310" class="trace" /> <line x1="330" y1="460" x2="400" y2="460" class="trace" /> <line x1="160" y1="310" x2="160" y2="390" class="trace" /> </svg>
+
+        <div class="node" id="n-O" style="left: 90px; top: 80px;"><div class="pad rect-horiz"></div><div class="lbl up">O</div></div>
+        <div class="node" id="n-M" style="left: 160px; top: 80px;"><div class="pad rect-horiz"></div><div class="lbl up">M</div></div>
+        <div class="node" id="n-T" style="left: 230px; top: 80px;"><div class="pad rect-horiz"></div><div class="lbl up">T</div></div>
+        <div class="node" id="n-E" style="left: 330px; top: 80px;"><div class="pad circ"></div><div class="lbl up">E</div></div>
+        <div class="node" id="n-I" style="left: 400px; top: 80px;"><div class="pad circ"></div><div class="lbl up">I</div></div>
+        <div class="node" id="n-S" style="left: 470px; top: 80px;"><div class="pad circ"></div><div class="lbl up">S</div></div>
+        <div class="node" id="n-H" style="left: 540px; top: 80px;"><div class="pad circ"></div><div class="lbl up">H</div></div>
+
+        <div class="node" id="n-Q" style="left: 90px; top: 170px;"><div class="pad rect-horiz"></div><div class="lbl down">Q</div></div>
+        <div class="node" id="n-U" style="left: 400px; top: 170px;"><div class="pad rect-vert"></div><div class="lbl left">U</div></div>
+        <div class="node" id="n-V" style="left: 470px; top: 170px;"><div class="pad rect-vert"></div><div class="lbl right">V</div></div>
+
+        <div class="node" id="n-G" style="left: 160px; top: 210px;"><div class="pad circ"></div><div class="lbl right">G</div></div>
+
+        <div class="node" id="n-Z" style="left: 160px; top: 250px;"><div class="pad circ"></div><div class="lbl right">Z</div></div> <div class="node" id="n-F" style="left: 400px; top: 280px;"><div class="pad circ"></div><div class="lbl right">F</div></div>
+
+        <div class="node" id="n-Y" style="left: 90px; top: 310px;"><div class="pad rect-horiz"></div><div class="lbl up">Y</div></div>
+        <div class="node" id="n-K" style="left: 160px; top: 310px;"><div class="pad rect-horiz"></div><div class="lbl up">K</div></div> <div class="node" id="n-N" style="left: 230px; top: 310px;"><div class="pad circ"></div><div class="lbl right">N</div></div>
+        <div class="node" id="n-A" style="left: 330px; top: 310px;"><div class="pad rect-vert"></div><div class="lbl left">A</div></div>
+        <div class="node" id="n-R" style="left: 400px; top: 310px;"><div class="pad circ"></div><div class="lbl down">R</div></div>
+        <div class="node" id="n-L" style="left: 470px; top: 310px;"><div class="pad circ"></div><div class="lbl right">L</div></div>
+
+        <div class="node" id="n-C" style="left: 160px; top: 390px;"><div class="pad circ"></div><div class="lbl right">C</div></div>
+
+        <div class="node" id="n-X" style="left: 160px; top: 460px;"><div class="pad rect-horiz"></div><div class="lbl left">X</div></div>
+        <div class="node" id="n-D" style="left: 230px; top: 460px;"><div class="pad circ"></div><div class="lbl right">D</div></div>
+        <div class="node" id="n-W" style="left: 330px; top: 460px;"><div class="pad rect-vert"></div><div class="lbl left">W</div></div>
+        <div class="node" id="n-P" style="left: 400px; top: 460px;"><div class="pad circ"></div><div class="lbl right">P</div></div>
+
+        <div class="node" id="n-B" style="left: 230px; top: 540px;"><div class="pad circ"></div><div class="lbl left">B</div></div>
+        <div class="node" id="n-J" style="left: 330px; top: 540px;"><div class="pad rect-vert"></div><div class="lbl right">J</div></div>
+    </div>
+
+    <div id="controls">
+        <div id="current-input"></div>
+        <button id="telegraph-btn">TAP ( . ) / HOLD ( - )</button>
+        <div id="decoded-word"></div>
+    </div>
+
+    <script>
+        const morseNodePathMap = {
+            '.': ['E'],
+            '..': ['E', 'I'],
+            '...': ['E', 'I', 'S'],
+            '....': ['E', 'I', 'S', 'H'],
+            '.-': ['E', 'A'],
+            '.-.': ['E', 'A', 'R'],
+            '.-..': ['E', 'A', 'R', 'L'],
+            '.--': ['E', 'A', 'W'],
+            '.--.': ['E', 'A', 'W', 'P'],
+            '.---': ['E', 'A', 'W', 'J'],
+            '..-': ['E', 'I', 'U'],
+            '..-.': ['E', 'I', 'U', 'F'],
+            '...-': ['E', 'I', 'S', 'V'],
+            '-': ['T'],
+            '--': ['T', 'M'],
+            '---': ['T', 'M', 'O'],
+            '-.': ['T', 'N'],
+            '-..': ['T', 'N', 'D'],
+            '-...': ['T', 'N', 'D', 'B'],
+            '-..-': ['T', 'N', 'D', 'X'],
+            '-.-': ['T', 'N', 'K'],
+            '-.-.': ['T', 'N', 'K', 'C'],
+            '-.--': ['T', 'N', 'K', 'Y'],
+            '--.': ['T', 'M', 'G'],
+            '--..': ['T', 'M', 'G', 'Z'],
+            '--.-': ['T', 'M', 'Q']
+        };
+
+        const standardMorseMap = {
+            ".-":"A", "-...":"B", "-.-.":"C", "-..":"D", ".":"E", "..-.":"F", "--.":"G", "....":"H", "..":"I", ".---":"J", "-.-":"K", ".-..":"L", "--":"M", "-.":"N", "---":"O", ".--.":"P", "--.-":"Q", ".-.":"R", "...":"S", "-":"T", "..-":"U", "...-":"V", ".--":"W", "-..-":"X", "-.--":"Y", "--..":"Z"
+        };
+
+        const telegraphBtn = document.getElementById('telegraph-btn');
+        const currentInputDisp = document.getElementById('current-input');
+        const decodedWordDisp = document.getElementById('decoded-word');
+        let currentCode = "";
+        let pressStartTime = 0;
+        let resetTimeout = null;
+
+        const DASH_THRESHOLD_MS = 200;
+        const RESET_DELAY_MS = 1500;
+        let completedChar = "";
+
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx, oscillator, gainNode;
+
+        function playTone() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            oscillator = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 600;
+            gainNode.gain.value = 0.1;
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+        }
+
+        function stopTone() {
+            if (oscillator) {
+                oscillator.stop();
+                oscillator.disconnect();
+            }
+        }
+
+        function highlightPath(sequence) {
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('active'));
+            currentInputDisp.style.color = "var(--led-active)";
+
+            const nodesToLight = morseNodePathMap[sequence];
+            if (nodesToLight) {
+                nodesToLight.forEach(nodeId => {
+                    const node = document.getElementById(`n-${nodeId}`);
+                    if (node) node.classList.add('active');
+                });
+
+                completedChar = standardMorseMap[sequence] || "";
+                currentInputDisp.innerText = completedChar ? `${sequence} ( ${completedChar} )` : sequence;
+
+            } else if (sequence !== "") {
+                currentInputDisp.style.color = "#ff5252";
+                currentInputDisp.innerText = sequence + " ??";
+            } else {
+                currentInputDisp.innerText = "";
+            }
+        }
+
+        function commitInput() {
+            if (completedChar !== "") {
+                decodedWordDisp.innerText += completedChar + " ";
+                decodedWordDisp.style.color = "var(--led-active)";
+                setTimeout(() => { decodedWordDisp.style.color = "#aaa"; }, 150);
+            }
+        }
+
+        function handlePressStart(e) {
+            if(e.type === 'keydown' && e.code !== 'Space' || e.repeat) return;
+            if(e.type === 'keydown') e.preventDefault();
+
+            telegraphBtn.classList.add('pressed');
+            clearTimeout(resetTimeout);
+            pressStartTime = Date.now();
+            playTone();
+        }
+
+        function handlePressEnd(e) {
+            if(e.type === 'keyup' && e.code !== 'Space') return;
+            if(pressStartTime === 0) return;
+
+            telegraphBtn.classList.remove('pressed');
+            stopTone();
+
+            const duration = Date.now() - pressStartTime;
+            pressStartTime = 0;
+
+            if (currentCode.length < 5) {
+                currentCode += (duration >= DASH_THRESHOLD_MS) ? "-" : ".";
+                highlightPath(currentCode);
+            }
+
+            resetTimeout = setTimeout(() => {
+                commitInput();
+                currentCode = "";
+                highlightPath("");
+            }, RESET_DELAY_MS);
+        }
+
+        telegraphBtn.addEventListener('mousedown', handlePressStart);
+        telegraphBtn.addEventListener('mouseup', handlePressEnd);
+        telegraphBtn.addEventListener('mouseleave', handlePressEnd);
+        telegraphBtn.addEventListener('touchstart', handlePressStart, {passive: true});
+        telegraphBtn.addEventListener('touchend', handlePressEnd);
+        window.addEventListener('keydown', handlePressStart);
+        window.addEventListener('keyup', handlePressEnd);
+    </script>
+</body>
+</html>
