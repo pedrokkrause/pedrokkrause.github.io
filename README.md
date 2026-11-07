@@ -1,6 +1,5 @@
-A collection of small projects I've built over time. Most are HTML+JavaScript adaptations, made with the help of AI, of projects I originally wrote in Python.
-
 ## Sites
+
 🌙 [Lunar Calendar](https://pedrokkrause.github.io/lunarCalendar/) — a custom 17-month calendar synced to the Moon's cycle, showing today's date in that system.
 
 🎛️ [Derivative Control](https://pedrokkrause.github.io/derivativecontrol) — steer a ball by its position, velocity, acceleration, or jerk and feel the difference.
@@ -13,5 +12,6 @@ A collection of small projects I've built over time. Most are HTML+JavaScript ad
 
 ⚖️ [Find the Barycenter](https://pedrokkrause.github.io/barycenter) — find the center of mass of a set of bodies.
 
-🗺️ [DDDs do Brasil](https://pedrokkrause.github.io/ddds) — interactive map quiz for learning Brazilian area codes (DDDs).
+⭕ [Circle Aberrations](https://pedrokkrause.github.io/circle) — draw a circle freehand and quantify its deviations using optical-style harmonic aberrations.
 
+🗺️ [DDDs do Brasil](https://pedrokkrause.github.io/ddds) — interactive map quiz for learning Brazilian area codes (DDDs).
