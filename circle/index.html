@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draw a Perfect Circle — Aberration Lab</title>
+    <!-- Tailwind CSS loaded for responsive utility support alongside custom Dracula theme CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-color: #1e1e2f;
+            --text-color: #f8f8f2;
+            --container-bg: #282a36;
+            --board-bg: #191a21;
+            --purple: #bd93f9;
+            --green: #50fa7b;
+            --cyan: #8be9fd;
+            --red: #ff5555;
+            --orange: #ffb86c;
+            --yellow: #f1fa8c;
+            --muted: #6272a4;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .main-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 880px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .game-container, .stats-container {
+            background-color: var(--container-bg);
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        .game-container { max-width: 470px; }
+        .stats-container { max-width: 370px; }
+
+        h1, h2 { margin-top: 0; font-weight: 700; }
+        h1 { font-size: 1.5rem; margin-bottom: 4px; }
+        h2 { font-size: 1.25rem; color: var(--green); margin-bottom: 12px; }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--cyan);
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        #physics-board {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-height: 380px;
+            background-color: var(--board-bg);
+            border-radius: 8px;
+            border: 2px solid #444;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.8);
+            position: relative;
+            cursor: crosshair;
+            touch-action: none;
+            user-select: none;
+            display: block;
+        }
+
+        .legend-row {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            font-size: 0.75rem;
+            color: #cbd5e1;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        button:active { transform: scale(0.97); }
+
+        #clear-btn { background-color: var(--muted); color: var(--text-color); }
+        #clear-btn:hover { background-color: #7788bd; }
+
+        #sim-btn { background-color: var(--purple); color: #282a36; }
+        #sim-btn:hover { background-color: #d6b4ff; }
+
+        #perfect-btn { background-color: var(--green); color: #282a36; }
+        #perfect-btn:hover { background-color: #69ff94; }
+
+        #results {
+            margin-top: 16px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-height: 1.5em;
+        }
+
+        .sub-results {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            margin-top: 2px;
+            font-family: Consolas, Monaco, monospace;
+        }
+
+        .diagnosis-box {
+            margin-top: 14px;
+            background: rgba(0, 0, 0, 0.28);
+            border-left: 3px solid var(--cyan);
+            padding: 10px 12px;
+            border-radius: 6px;
+            text-align: left;
+            font-size: 0.84rem;
+            line-height: 1.4;
+            color: #e2e8f0;
+        }
+
+        /* Aberration Bars Section */
+        .aberration-list {
+            text-align: left;
+            margin-bottom: 18px;
+        }
+
+        .aberration-item {
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 7px 10px;
+            border-radius: 6px;
+        }
+
+        .aberration-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .aberration-val {
+            font-family: Consolas, Monaco, monospace;
+            font-weight: bold;
+        }
+
+        .bar-track {
+            width: 100%;
+            height: 7px;
+            background-color: var(--board-bg);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            border-radius: 4px;
+            transition: width 0.25s ease-out;
+        }
+
+        /* Stats Section */
+        .section-divider {
+            border-top: 2px solid #444;
+            padding-top: 14px;
+            margin-top: 14px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 7px 12px;
+            border-radius: 6px;
+        }
+
+        .stat-val { font-weight: bold; color: var(--purple); }
+
+        .score-list-container {
+            margin-top: 16px;
+            border-top: 2px solid #444;
+            padding-top: 12px;
+            text-align: left;
+        }
+
+        .score-list-container h3 {
+            font-size: 0.95rem;
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: var(--green);
+            font-weight: 700;
+        }
+
+        #score-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        #score-list li {
+            background: #444;
+            margin-bottom: 5px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #score-list::-webkit-scrollbar { width: 6px; }
+        #score-list::-webkit-scrollbar-track { background: #282a36; }
+        #score-list::-webkit-scrollbar-thumb { background: #6272a4; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <!-- Main Application Wrapper -->
+    <div class="main-wrapper">
+        <!-- Left Card: Interactive Drawing & Diagnosis -->
+        <div class="game-container">
+            <h1>Draw a Perfect Circle</h1>
+            <p class="subtitle">Draw a single closed loop to quantify your radial aberrations</p>
+
+            <div class="canvas-container">
+                <canvas id="physics-board"></canvas>
+            </div>
+
+            <div class="legend-row">
+                <span class="legend-item"><span class="legend-dot" style="background: #50fa7b;"></span>&lt;2.5% err</span>
+                <span class="legend-item"><span class="legend-dot" style="background: #f1fa8c;"></span>&lt;7% err</span>
+                <span class="legend-item"><span class="legend-dot" style="background: #ff5555;"></span>&ge;7% err</span>
+                <span class="legend-item"><span class="legend-dot" style="background: #6272a4;"></span>Ideal Fit</span>
+            </div>
+
+            <div class="buttons">
+                <button id="clear-btn" type="button">Clear Board</button>
+                <button id="sim-btn" type="button">Simulate Human</button>
+                <button id="perfect-btn" type="button">Perfect (= 0)</button>
+            </div>
+
+            <div id="results">Perfection: <span style="color: #bd93f9;">--%</span></div>
+            <div id="sub-results" class="sub-results">Global Error (E): 0.0000 | Mean Radius (R₀): -- px</div>
+
+            <div id="diagnosis-box" class="diagnosis-box">
+                Draw a circle on the board above to decompose your stroke into harmonic aberrations.
+            </div>
+        </div>
+
+        <!-- Right Card: Harmonic Aberrations & Session Stats -->
+        <div class="stats-container">
+            <h2>Aberration Breakdown</h2>
+            <p style="font-size: 0.76rem; color: #8be9fd; margin-top: -8px; margin-bottom: 12px;">
+                All parameters converge to 0 in the limit of an ideal circle
+            </p>
+
+            <div class="aberration-list">
+                <!-- C2: Astigmatism -->
+                <div class="aberration-item">
+                    <div class="aberration-header">
+                        <span>Astigmatism (C₂ · Ellipticity)</span>
+                        <span id="val-C2" class="aberration-val" style="color: #ff5555;">0.0000</span>
+                    </div>
+                    <div class="bar-track">
+                        <div id="bar-C2" class="bar-fill" style="background-color: #ff5555;"></div>
+                    </div>
+                </div>
+
+                <!-- C3: Trefoil -->
+                <div class="aberration-item">
+                    <div class="aberration-header">
+                        <span>Trefoil (C₃ · Egg Asymmetry)</span>
+                        <span id="val-C3" class="aberration-val" style="color: #ffb86c;">0.0000</span>
+                    </div>
+                    <div class="bar-track">
+                        <div id="bar-C3" class="bar-fill" style="background-color: #ffb86c;"></div>
+                    </div>
+                </div>
+
+                <!-- C4: Tetrafoil -->
+                <div class="aberration-item">
+                    <div class="aberration-header">
+                        <span>Tetrafoil (C₄ · Quadrature)</span>
+                        <span id="val-C4" class="aberration-val" style="color: #bd93f9;">0.0000</span>
+                    </div>
+                    <div class="bar-track">
+                        <div id="bar-C4" class="bar-fill" style="background-color: #bd93f9;"></div>
+                    </div>
+                </div>
+
+                <!-- G: Closure / Spiral Gap -->
+                <div class="aberration-item">
+                    <div class="aberration-header">
+                        <span>Closure Error (G · Spiral/Gap)</span>
+                        <span id="val-G" class="aberration-val" style="color: #8be9fd;">0.0000</span>
+                    </div>
+                    <div class="bar-track">
+                        <div id="bar-G" class="bar-fill" style="background-color: #8be9fd;"></div>
+                    </div>
+                </div>
+
+                <!-- T: Motor Tremor -->
+                <div class="aberration-item">
+                    <div class="aberration-header">
+                        <span>Motor Tremor (T · n &ge; 5)</span>
+                        <span id="val-T" class="aberration-val" style="color: #50fa7b;">0.0000</span>
+                    </div>
+                    <div class="bar-track">
+                        <div id="bar-T" class="bar-fill" style="background-color: #50fa7b;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-divider">
+                <h2>Your Stats</h2>
+
+                <div class="stat-item">
+                    <span>Rounds:</span>
+                    <span id="rounds-val" class="stat-val" style="color: #f8f8f2;">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Average:</span>
+                    <span id="avg-val" class="stat-val">--</span>
+                </div>
+                <div class="stat-item">
+                    <span>Std Dev:</span>
+                    <span id="sd-val" class="stat-val" style="color: #ffb86c;">--</span>
+                </div>
+
+                <div class="score-list-container">
+                    <h3>History</h3>
+                    <ul id="score-list">
+                        <li style="justify-content: center; color: #888; background: transparent;">No scores yet</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // WEB AUDIO ENGINE (Matching the "Guess the Barycenter" Reference Project)
+        // ============================================================================
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!AudioContextClass) return;
+            if (!audioCtx) audioCtx = new AudioContextClass();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playTone(freq, type, duration, vol) {
+            if (!audioCtx) return;
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.type = type;
+            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        function playPopSound() {
+            initAudio();
+            playTone(600, 'sine', 0.05, 0.05);
+            setTimeout(() => playTone(800, 'sine', 0.05, 0.05), 50);
+        }
+
+        function playRevealSound() {
+            initAudio();
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            const freqs = [261.63, 329.63, 392.00, 523.25]; // C major chord arpeggio
+            freqs.forEach((f, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = f;
+                gain.gain.setValueAtTime(0.09, t + i * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.008, t + i * 0.06 + 0.3);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t + i * 0.06);
+                osc.stop(t + i * 0.06 + 0.3);
+            });
+        }
+
+        function playNextSound() {
+            initAudio();
+            playTone(300, 'square', 0.1, 0.03);
+            setTimeout(() => playTone(450, 'square', 0.15, 0.03), 80);
+        }
+
+        function playErrorSound() {
+            initAudio();
+            playTone(220, 'sawtooth', 0.12, 0.04);
+            setTimeout(() => playTone(165, 'sawtooth', 0.18, 0.04), 90);
+        }
+
+        // ============================================================================
+        // MATHEMATICAL ENGINE: HARMONIC CIRCLE ABERRATION ANALYZER
+        // ============================================================================
+        class CircleAberrationAnalyzer {
+            constructor(numSamples = 256, maxTremorHarmonic = 25) {
+                this.M = numSamples;
+                this.maxTremorHarmonic = maxTremorHarmonic;
+            }
+
+            /**
+             * Solves a 3x3 linear system M * x = rhs via Gaussian elimination with partial pivoting.
+             */
+            solve3x3(M, rhs) {
+                const A = [
+                    [M[0][0], M[0][1], M[0][2], rhs[0]],
+                    [M[1][0], M[1][1], M[1][2], rhs[1]],
+                    [M[2][0], M[2][1], M[2][2], rhs[2]]
+                ];
+
+                for (let i = 0; i < 3; i++) {
+                    let maxRow = i;
+                    for (let k = i + 1; k < 3; k++) {
+                        if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) {
+                            maxRow = k;
+                        }
+                    }
+                    const tmp = A[i];
+                    A[i] = A[maxRow];
+                    A[maxRow] = tmp;
+
+                    const pivot = A[i][i];
+                    if (Math.abs(pivot) < 1e-12) return [0, 0, 0];
+
+                    for (let k = i + 1; k < 3; k++) {
+                        const factor = A[k][i] / pivot;
+                        for (let j = i; j < 4; j++) {
+                            A[k][j] -= factor * A[i][j];
+                        }
+                    }
+                }
+
+                const x = [0, 0, 0];
+                for (let i = 2; i >= 0; i--) {
+                    let sum = A[i][3];
+                    for (let j = i + 1; j < 3; j++) {
+                        sum -= A[i][j] * x[j];
+                    }
+                    x[i] = sum / A[i][i];
+                }
+                return x;
+            }
+
+            /**
+             * 1D linear interpolation matching numpy.interp
+             */
+            interp1D(xQuery, xKnots, yKnots) {
+                const n = xKnots.length;
+                const result = new Float64Array(xQuery.length);
+                let j = 0;
+
+                for (let i = 0; i < xQuery.length; i++) {
+                    const x = xQuery[i];
+                    if (x <= xKnots[0]) {
+                        result[i] = yKnots[0];
+                        continue;
+                    }
+                    if (x >= xKnots[n - 1]) {
+                        result[i] = yKnots[n - 1];
+                        continue;
+                    }
+                    while (j < n - 2 && xKnots[j + 1] < x) {
+                        j++;
+                    }
+                    const x0 = xKnots[j];
+                    const x1 = xKnots[j + 1];
+                    const span = x1 - x0;
+                    const t = span > 1e-12 ? (x - x0) / span : 0.0;
+                    result[i] = yKnots[j] + t * (yKnots[j + 1] - yKnots[j]);
+                }
+                return result;
+            }
+
+            /**
+             * Analyzes an array of [{x, y}, ...] points and returns all dimensionless
+             * aberration coefficients (all = 0 for an ideal circle).
+             */
+            analyze(points) {
+                if (!points || points.length < 12) {
+                    throw new Error("Stroke is too short. Please draw a complete circle (at least 12 points).");
+                }
+
+                // STEP 1: Arc-length parameterization to remove hand velocity bias
+                const segLengths = [];
+                let totalLength = 0;
+                for (let i = 1; i < points.length; i++) {
+                    const dx = points[i].x - points[i - 1].x;
+                    const dy = points[i].y - points[i - 1].y;
+                    const len = Math.hypot(dx, dy);
+                    segLengths.push(len);
+                    totalLength += len;
+                }
+
+                if (totalLength < 40.0) {
+                    throw new Error("The drawn circle is too small. Try drawing a larger loop.");
+                }
+
+                const sRaw = [0.0];
+                const ptsUnique = [points[0]];
+                let cumLen = 0.0;
+
+                for (let i = 0; i < segLengths.length; i++) {
+                    cumLen += segLengths[i];
+                    const sVal = cumLen / totalLength;
+                    if (sVal - sRaw[sRaw.length - 1] > 1e-9) {
+                        sRaw.push(sVal);
+                        ptsUnique.push(points[i + 1]);
+                    }
+                }
+
+                const M = this.M;
+                const sArc = new Float64Array(M);
+                for (let i = 0; i < M; i++) sArc[i] = i / M;
+
+                const rawX = ptsUnique.map(p => p.x);
+                const rawY = ptsUnique.map(p => p.y);
+                const xArc = this.interp1D(sArc, sRaw, rawX);
+                const yArc = this.interp1D(sArc, sRaw, rawY);
+
+                // STEP 2: Kåsa Algebraic Circle Fit via Least Squares (minimizes n=1 Coma mode)
+                // System: [2*x, 2*y, 1] * [xc, yc, c]^T = x^2 + y^2
+                const ATA = [
+                    [0, 0, 0],
+                    [0, 0, 0],
+                    [0, 0, 0]
+                ];
+                const ATb = [0, 0, 0];
+
+                for (let i = 0; i < M; i++) {
+                    const xi = xArc[i];
+                    const yi = yArc[i];
+                    const a0 = 2.0 * xi;
+                    const a1 = 2.0 * yi;
+                    const a2 = 1.0;
+                    const bi = xi * xi + yi * yi;
+
+                    ATA[0][0] += a0 * a0;
+                    ATA[0][1] += a0 * a1;
+                    ATA[0][2] += a0 * a2;
+                    ATA[1][1] += a1 * a1;
+                    ATA[1][2] += a1 * a2;
+                    ATA[2][2] += a2 * a2;
+
+                    ATb[0] += a0 * bi;
+                    ATb[1] += a1 * bi;
+                    ATb[2] += a2 * bi;
+                }
+                ATA[1][0] = ATA[0][1];
+                ATA[2][0] = ATA[0][2];
+                ATA[2][1] = ATA[1][2];
+
+                const sol = this.solve3x3(ATA, ATb);
+                let xc = sol[0];
+                let yc = sol[1];
+
+                // STEP 3: Unwrapped Polar Coordinates & Angular Resampling
+                const NUnique = ptsUnique.length;
+                const rRaw = new Float64Array(NUnique);
+                const anglesUnwrapped = new Float64Array(NUnique);
+
+                for (let i = 0; i < NUnique; i++) {
+                    const dx = ptsUnique[i].x - xc;
+                    const dy = ptsUnique[i].y - yc;
+                    rRaw[i] = Math.hypot(dx, dy);
+                    const ang = Math.atan2(dy, dx);
+                    if (i === 0) {
+                        anglesUnwrapped[0] = ang;
+                    } else {
+                        let dAng = ang - Math.atan2(ptsUnique[i - 1].y - yc, ptsUnique[i - 1].x - xc);
+                        while (dAng > Math.PI) dAng -= 2.0 * Math.PI;
+                        while (dAng < -Math.PI) dAng += 2.0 * Math.PI;
+                        anglesUnwrapped[i] = anglesUnwrapped[i - 1] + dAng;
+                    }
+                }
+
+                const netAngleDelta = anglesUnwrapped[NUnique - 1] - anglesUnwrapped[0];
+                const totalAngleSwept = Math.abs(netAngleDelta);
+                if (totalAngleSwept < Math.PI) {
+                    throw new Error("Please close the loop further (minimum 180° angular sweep required).");
+                }
+
+                // Monotone normalized angular coordinate tau in [0, 1]
+                const tauKnots = [];
+                const rKnots = [];
+                const xKnots = [];
+                const yKnots = [];
+                let maxTauSoFar = -1.0;
+
+                for (let i = 0; i < NUnique; i++) {
+                    const rawTau = (anglesUnwrapped[i] - anglesUnwrapped[0]) / netAngleDelta;
+                    const clampedTau = Math.max(0.0, Math.min(1.0, rawTau));
+                    const monoTau = Math.max(maxTauSoFar, clampedTau);
+                    if (monoTau > maxTauSoFar + 1e-9 || i === 0) {
+                        tauKnots.push(monoTau);
+                        rKnots.push(rRaw[i]);
+                        xKnots.push(ptsUnique[i].x);
+                        yKnots.push(ptsUnique[i].y);
+                        maxTauSoFar = monoTau;
+                    }
+                }
+
+                const tauUniform = new Float64Array(M);
+                for (let i = 0; i < M; i++) tauUniform[i] = i / M;
+
+                let rU, xU, yU;
+                if (tauKnots.length >= 12) {
+                    rU = this.interp1D(tauUniform, tauKnots, rKnots);
+                    xU = this.interp1D(tauUniform, tauKnots, xKnots);
+                    yU = this.interp1D(tauUniform, tauKnots, yKnots);
+                } else {
+                    xU = xArc;
+                    yU = yArc;
+                    rU = new Float64Array(M);
+                    for (let i = 0; i < M; i++) rU[i] = Math.hypot(xU[i] - xc, yU[i] - yc);
+                }
+
+                let R0 = 0.0;
+                for (let i = 0; i < M; i++) R0 += rU[i];
+                R0 /= M;
+
+                if (R0 < 10.0) {
+                    throw new Error("Mean radius is too small for harmonic analysis.");
+                }
+
+                // Fine orthogonal projection to zero out the n=1 fundamental harmonic (Coma)
+                let sumCos1 = 0.0;
+                let sumSin1 = 0.0;
+                for (let i = 0; i < M; i++) {
+                    const thetaI = anglesUnwrapped[0] + tauUniform[i] * netAngleDelta;
+                    const dr = rU[i] - R0;
+                    sumCos1 += dr * Math.cos(thetaI);
+                    sumSin1 += dr * Math.sin(thetaI);
+                }
+                xc += (2.0 / M) * sumCos1;
+                yc += (2.0 / M) * sumSin1;
+
+                R0 = 0.0;
+                for (let i = 0; i < M; i++) {
+                    rU[i] = Math.hypot(xU[i] - xc, yU[i] - yc);
+                    R0 += rU[i];
+                }
+                R0 /= M;
+
+                // STEP 4: Closure Error G (Spatial Endpoint Gap + Angular Sweep Error)
+                const pStart = ptsUnique[0];
+                const pEnd = ptsUnique[NUnique - 1];
+                const gapDist = Math.hypot(pEnd.x - pStart.x, pEnd.y - pStart.y);
+                const angularClosureErr = Math.abs(totalAngleSwept - 2.0 * Math.PI) / (2.0 * Math.PI);
+                const G = Math.hypot(gapDist / R0, angularClosureErr);
+
+                // STEP 5: Dimensionless Radial Profile & Spiral Ramp Decoupling (prevents Gibbs phenomenon)
+                const delta = new Float64Array(M);
+                for (let i = 0; i < M; i++) {
+                    delta[i] = (rU[i] - R0) / R0;
+                }
+
+                const rStart = Math.hypot(pStart.x - xc, pStart.y - yc);
+                const rEnd = Math.hypot(pEnd.x - xc, pEnd.y - yc);
+                const spiralDrift = (rEnd - rStart) / R0;
+
+                const deltaPeriodic = new Float64Array(M);
+                let meanPeriodic = 0.0;
+                for (let i = 0; i < M; i++) {
+                    const ramp = spiralDrift * (tauUniform[i] - 0.5);
+                    deltaPeriodic[i] = delta[i] - ramp;
+                    meanPeriodic += deltaPeriodic[i];
+                }
+                meanPeriodic /= M;
+                for (let i = 0; i < M; i++) {
+                    deltaPeriodic[i] -= meanPeriodic;
+                }
+
+                // STEP 6: Discrete Fourier Transform for Harmonics k = 2..maxTremorHarmonic
+                const maxK = Math.min(this.maxTremorHarmonic, Math.floor(M / 2));
+                const amplitudes = new Float64Array(maxK + 1);
+                const phases = new Float64Array(maxK + 1);
+
+                for (let k = 1; k <= maxK; k++) {
+                    let re = 0.0;
+                    let im = 0.0;
+                    const freq = (2.0 * Math.PI * k) / M;
+                    for (let n = 0; n < M; n++) {
+                        const angle = freq * n;
+                        re += deltaPeriodic[n] * Math.cos(angle);
+                        im -= deltaPeriodic[n] * Math.sin(angle);
+                    }
+                    re /= M;
+                    im /= M;
+                    amplitudes[k] = 2.0 * Math.hypot(re, im);
+                    phases[k] = Math.atan2(im, re);
+                }
+
+                const C2 = amplitudes[2]; // Astigmatism (Ellipticity)
+                const C3 = amplitudes[3]; // Trefoil (Triangular/Egg asymmetry)
+                const C4 = amplitudes[4]; // Tetrafoil (Quadrature)
+
+                // Physical orientation of the major axis of Astigmatism (n=2)
+                const theta0 = anglesUnwrapped[0];
+                const direction = netAngleDelta >= 0 ? 1.0 : -1.0;
+                const phi2Rad = theta0 - direction * (phases[2] / 2.0);
+                const phi2Deg = ((phi2Rad * 180.0 / Math.PI) % 180.0 + 180.0) % 180.0;
+
+                // Motor Tremor: root sum of squares of high frequencies (5 <= k <= 25)
+                let tremorSumSq = 0.0;
+                for (let k = 5; k <= maxK; k++) {
+                    tremorSumSq += amplitudes[k] * amplitudes[k];
+                }
+                const T = Math.sqrt(tremorSumSq);
+
+                // STEP 7: Global Imperfection Index (E) by Parseval's Theorem & Perfection Score
+                const harmonicEnergy = 0.5 * (C2 * C2 + C3 * C3 + C4 * C4 + T * T);
+                const alphaGap = 0.25;
+                const E = Math.sqrt(harmonicEnergy + alphaGap * (G * G));
+                const score = 100.0 * Math.exp(-6.5 * E);
+
+                return {
+                    xc,
+                    yc,
+                    R0,
+                    C2,
+                    C3,
+                    C4,
+                    G,
+                    T,
+                    E,
+                    score,
+                    phi2Rad,
+                    phi2Deg,
+                    spiralDrift,
+                    resampledX: xU,
+                    resampledY: yU,
+                    delta,
+                    pStart,
+                    pEnd
+                };
+            }
+        }
+
+        // ============================================================================
+        // UI STATE, CANVAS RENDERING & STATS CONTROLLER
+        // ============================================================================
+        const canvas = document.getElementById('physics-board');
+        const ctx = canvas.getContext('2d');
+        const analyzer = new CircleAberrationAnalyzer();
+
+        const resultsEl = document.getElementById('results');
+        const subResultsEl = document.getElementById('sub-results');
+        const diagnosisBox = document.getElementById('diagnosis-box');
+
+        const roundsVal = document.getElementById('rounds-val');
+        const avgVal = document.getElementById('avg-val');
+        const sdVal = document.getElementById('sd-val');
+        const scoreList = document.getElementById('score-list');
+
+        const barSpecs = {
+            C2: { valEl: document.getElementById('val-C2'), barEl: document.getElementById('bar-C2'), maxRef: 0.25 },
+            C3: { valEl: document.getElementById('val-C3'), barEl: document.getElementById('bar-C3'), maxRef: 0.15 },
+            C4: { valEl: document.getElementById('val-C4'), barEl: document.getElementById('bar-C4'), maxRef: 0.12 },
+            G:  { valEl: document.getElementById('val-G'),  barEl: document.getElementById('bar-G'),  maxRef: 0.30 },
+            T:  { valEl: document.getElementById('val-T'),  barEl: document.getElementById('bar-T'),  maxRef: 0.08 }
+        };
+
+        let rawPoints = [];
+        let isDrawing = false;
+        let lastAnalysis = null;
+        let scoreHistory = [];
+        let boardSize = 380;
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            boardSize = rect.width;
+            canvas.width = Math.round(rect.width * dpr);
+            canvas.height = Math.round(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            if (lastAnalysis) {
+                renderAnalysisOnCanvas(lastAnalysis);
+            } else {
+                drawGridOnly();
+            }
+        }
+
+        function drawGridOnly() {
+            ctx.clearRect(0, 0, boardSize, boardSize);
+            const mid = boardSize / 2;
+
+            ctx.save();
+            ctx.strokeStyle = '#262936';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 6]);
+
+            ctx.beginPath();
+            ctx.moveTo(mid, 0);
+            ctx.lineTo(mid, boardSize);
+            ctx.moveTo(0, mid);
+            ctx.lineTo(boardSize, mid);
+            ctx.stroke();
+
+            // Subtle center guide crosshair
+            ctx.setLineDash([]);
+            ctx.strokeStyle = '#343746';
+            ctx.beginPath();
+            ctx.arc(mid, mid, 3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function getPointerPos(evt) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: evt.clientX - rect.left,
+                y: evt.clientY - rect.top
+            };
+        }
+
+        function startDrawing(evt) {
+            evt.preventDefault();
+            if ( canvas.setPointerCapture && evt.pointerId !== undefined ) {
+                canvas.setPointerCapture(evt.pointerId);
+            }
+            isDrawing = true;
+            lastAnalysis = null;
+            rawPoints = [getPointerPos(evt)];
+            drawGridOnly();
+            playPopSound();
+        }
+
+        function moveDrawing(evt) {
+            if (!isDrawing) return;
+            evt.preventDefault();
+            const pt = getPointerPos(evt);
+            const prev = rawPoints[rawPoints.length - 1];
+
+            if (Math.hypot(pt.x - prev.x, pt.y - prev.y) >= 2.0) {
+                rawPoints.push(pt);
+                ctx.save();
+                ctx.strokeStyle = '#8be9fd';
+                ctx.lineWidth = 3.2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(prev.x, prev.y);
+                ctx.lineTo(pt.x, pt.y);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function endDrawing(evt) {
+            if (!isDrawing) return;
+            evt.preventDefault();
+            isDrawing = false;
+            evaluateCurrentStroke(true, 'User Draw');
+        }
+
+        function evaluateCurrentStroke(recordInHistory = true, sourceLabel = 'Round') {
+            try {
+                const res = analyzer.analyze(rawPoints);
+                lastAnalysis = res;
+                renderAnalysisOnCanvas(res);
+                updateDashboard(res, recordInHistory, sourceLabel);
+                playRevealSound();
+            } catch (err) {
+                lastAnalysis = null;
+                diagnosisBox.style.borderLeftColor = '#ff5555';
+                diagnosisBox.innerHTML = `<strong style="color: #ff5555;">Incomplete Circle:</strong> ${err.message}`;
+                playErrorSound();
+            }
+        }
+
+        function renderAnalysisOnCanvas(res) {
+            drawGridOnly();
+            const { xc, yc, R0, C2, G, phi2Rad, resampledX, resampledY, delta, pStart, pEnd } = res;
+
+            ctx.save();
+
+            // 1. Ideal Least-Squares Reference Circle (Dashed Muted Blue)
+            ctx.strokeStyle = '#6272a4';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
+            ctx.beginPath();
+            ctx.arc(xc, yc, R0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 2. Astigmatism Major Axis Line (if C2 is noticeable)
+            if (C2 > 0.015) {
+                const axisLen = R0 + 18;
+                const dx = axisLen * Math.cos(phi2Rad);
+                const dy = axisLen * Math.sin(phi2Rad);
+
+                ctx.strokeStyle = 'rgba(255, 85, 85, 0.65)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 4]);
+                ctx.beginPath();
+                ctx.moveTo(xc - dx, yc - dy);
+                ctx.lineTo(xc + dx, yc + dy);
+                ctx.stroke();
+            }
+
+            // 3. User's Resampled Stroke Colored by Local Radial Deviation |delta(tau)|
+            ctx.setLineDash([]);
+            ctx.lineWidth = 3.6;
+            ctx.lineCap = 'round';
+            const M = resampledX.length;
+
+            for (let i = 0; i < M; i++) {
+                const nxt = G < 0.05 ? (i + 1) % M : Math.min(i + 1, M - 1);
+                const d = Math.abs(delta[i]);
+
+                if (d < 0.025) {
+                    ctx.strokeStyle = '#50fa7b'; // Green: within 2.5% of ideal radius
+                } else if (d < 0.07) {
+                    ctx.strokeStyle = '#f1fa8c'; // Yellow: moderate deviation (2.5% - 7%)
+                } else {
+                    ctx.strokeStyle = '#ff5555'; // Red: strong local aberration (>= 7%)
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(resampledX[i], resampledY[i]);
+                ctx.lineTo(resampledX[nxt], resampledY[nxt]);
+                ctx.stroke();
+            }
+
+            // 4. Closure Gap Line & Start/End Markers
+            ctx.strokeStyle = '#8be9fd';
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([2, 3]);
+            ctx.beginPath();
+            ctx.moveTo(pStart.x, pStart.y);
+            ctx.lineTo(pEnd.x, pEnd.y);
+            ctx.stroke();
+
+            ctx.setLineDash([]);
+            // Start point (Cyan)
+            ctx.fillStyle = '#8be9fd';
+            ctx.beginPath();
+            ctx.arc(pStart.x, pStart.y, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // End point (Red)
+            ctx.fillStyle = '#ff5555';
+            ctx.beginPath();
+            ctx.arc(pEnd.x, pEnd.y, 4.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 5. True Fitted Center Crosshair Marker
+            ctx.strokeStyle = '#f8f8f2';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(xc, yc, 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(xc - 8, yc);
+            ctx.lineTo(xc + 8, yc);
+            ctx.moveTo(xc, yc - 8);
+            ctx.lineTo(xc, yc + 8);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function updateDashboard(res, recordInHistory, sourceLabel) {
+            const scoreText = res.score.toFixed(1);
+            const scoreColor = res.score >= 90 ? '#50fa7b' : (res.score >= 75 ? '#bd93f9' : '#ffb86c');
+            resultsEl.innerHTML = `Perfection: <span style="color: ${scoreColor};">${scoreText}%</span>`;
+            subResultsEl.textContent = `Global Error (E): ${res.E.toFixed(4)} | Mean Radius (R₀): ${res.R0.toFixed(1)} px`;
+
+            // Update Aberration Bars
+            ['C2', 'C3', 'C4', 'G', 'T'].forEach(key => {
+                const val = res[key];
+                const spec = barSpecs[key];
+                spec.valEl.textContent = val.toFixed(4);
+                const pct = Math.min(100, (val / spec.maxRef) * 100);
+                spec.barEl.style.width = `${pct.toFixed(1)}%`;
+            });
+
+            // Biomechanical Diagnosis
+            diagnosisBox.style.borderLeftColor = '#8be9fd';
+            if (res.E < 0.005) {
+                diagnosisBox.style.borderLeftColor = '#50fa7b';
+                diagnosisBox.innerHTML = `<strong style="color: #50fa7b;">Ideal Limit Reached (= 0):</strong> All harmonic modes (C₂, C₃, C₄), closure gap (G), and motor tremor (T) vanished to zero.`;
+            } else {
+                const flaws = [
+                    { name: 'Astigmatism (C₂)', ratio: res.C2 / 0.10, key: 'C2' },
+                    { name: 'Trefoil (C₃)', ratio: res.C3 / 0.07, key: 'C3' },
+                    { name: 'Tetrafoil (C₄)', ratio: res.C4 / 0.05, key: 'C4' },
+                    { name: 'Closure Gap (G)', ratio: res.G / 0.12, key: 'G' },
+                    { name: 'Motor Tremor (T)', ratio: res.T / 0.035, key: 'T' }
+                ];
+                flaws.sort((a, b) => b.ratio - a.ratio);
+                const dom = flaws[0].key;
+
+                if (dom === 'C2') {
+                    diagnosisBox.innerHTML = `<strong style="color: #ff5555;">Dominant: Astigmatism (C₂ = ${res.C2.toFixed(3)})</strong> — Your circle is elongated along the <strong>${res.phi2Deg.toFixed(0)}°</strong> axis due to the biomechanical difference between wrist rotation and elbow/finger flexion.`;
+                } else if (dom === 'C3') {
+                    diagnosisBox.innerHTML = `<strong style="color: #ffb86c;">Dominant: Trefoil (C₃ = ${res.C3.toFixed(3)})</strong> — Triangular or egg-shaped asymmetry, typically caused by shifting your hand's pivot point mid-stroke.`;
+                } else if (dom === 'C4') {
+                    diagnosisBox.innerHTML = `<strong style="color: #bd93f9;">Dominant: Tetrafoil (C₄ = ${res.C4.toFixed(3)})</strong> — Tendency to flatten or square off the four cardinal quadrants while steering the cursor.`;
+                } else if (dom === 'G') {
+                    diagnosisBox.innerHTML = `<strong style="color: #8be9fd;">Dominant: Closure Error (G = ${res.G.toFixed(3)})</strong> — Good curvature, but the stroke spiraled outward/inward or missed the starting point.`;
+                } else {
+                    diagnosisBox.innerHTML = `<strong style="color: #50fa7b;">Dominant: Motor Tremor (T = ${res.T.toFixed(3)})</strong> — High-frequency roughness. Drawing too slowly with visual feedback increases micro-corrections.`;
+                }
+            }
+
+            if (recordInHistory) {
+                scoreHistory.push({ score: res.score, label: sourceLabel, E: res.E });
+                updateStatsUI();
+            }
+        }
+
+        function updateStatsUI() {
+            if (scoreHistory.length === 0) return;
+
+            const n = scoreHistory.length;
+            const scores = scoreHistory.map(item => item.score);
+            const sum = scores.reduce((a, b) => a + b, 0);
+            const avg = sum / n;
+            const variance = scores.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / n;
+            const sd = Math.sqrt(variance);
+
+            roundsVal.textContent = n;
+            avgVal.textContent = `${avg.toFixed(1)}%`;
+            sdVal.textContent = `±${sd.toFixed(1)}%`;
+
+            scoreList.innerHTML = '';
+            for (let i = scoreHistory.length - 1; i >= 0; i--) {
+                const li = document.createElement('li');
+                const roundSpan = document.createElement('span');
+                roundSpan.textContent = `Round ${i + 1} (${scoreHistory[i].label})`;
+
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = `${scoreHistory[i].score.toFixed(1)}%`;
+                scoreSpan.style.color = scoreHistory[i].score >= 90 ? '#50fa7b' : '#bd93f9';
+                scoreSpan.style.fontWeight = 'bold';
+
+                li.appendChild(roundSpan);
+                li.appendChild(scoreSpan);
+                scoreList.appendChild(li);
+            }
+        }
+
+        function simulateCircle(perfect = false, recordHistory = true) {
+            const cx = boardSize / 2;
+            const cy = boardSize / 2;
+            const R0 = boardSize * 0.34;
+            const N = 360;
+            rawPoints = [];
+
+            for (let i = 0; i <= N; i++) {
+                const s = i / N;
+                let theta, r;
+
+                if (perfect) {
+                    theta = 2.0 * Math.PI * s;
+                    r = R0;
+                } else {
+                    // Realistic human circle with slight ellipticity, trefoil, spiral drift, and tremor
+                    theta = 2.0 * Math.PI * (0.985 * s) + 0.45;
+                    const tremor = 0.008 * Math.sin(2 * Math.PI * 11 * s) + 0.006 * Math.cos(2 * Math.PI * 17 * s);
+                    r = R0 * (
+                        1.0
+                        + 0.085 * Math.cos(2 * (theta - 0.6))
+                        + 0.032 * Math.cos(3 * (theta - 1.1))
+                        + 0.015 * Math.cos(4 * theta)
+                        + 0.048 * (s - 0.5)
+                        + tremor
+                    );
+                }
+
+                rawPoints.push({
+                    x: cx + r * Math.cos(theta),
+                    y: cy + r * Math.sin(theta)
+                });
+            }
+
+            const res = analyzer.analyze(rawPoints);
+            lastAnalysis = res;
+            renderAnalysisOnCanvas(res);
+            updateDashboard(res, recordHistory, perfect ? 'Ideal' : 'Simulated');
+        }
+
+        function clearBoard() {
+            rawPoints = [];
+            lastAnalysis = null;
+            drawGridOnly();
+            resultsEl.innerHTML = `Perfection: <span style="color: #bd93f9;">--%</span>`;
+            subResultsEl.textContent = `Global Error (E): 0.0000 | Mean Radius (R₀): -- px`;
+            diagnosisBox.style.borderLeftColor = '#8be9fd';
+            diagnosisBox.textContent = 'Board cleared. Draw a single loop to analyze your circle.';
+            ['C2', 'C3', 'C4', 'G', 'T'].forEach(key => {
+                barSpecs[key].valEl.textContent = '0.0000';
+                barSpecs[key].barEl.style.width = '0%';
+            });
+            playNextSound();
+        }
+
+        // Event Listeners
+        canvas.addEventListener('pointerdown', startDrawing);
+        canvas.addEventListener('pointermove', moveDrawing);
+        window.addEventListener('pointerup', endDrawing);
+
+        document.getElementById('clear-btn').addEventListener('click', clearBoard);
+        document.getElementById('sim-btn').addEventListener('click', () => {
+            playNextSound();
+            simulateCircle(false, true);
+        });
+        document.getElementById('perfect-btn').addEventListener('click', () => {
+            playNextSound();
+            simulateCircle(true, true);
+        });
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initialize on load with a simulated human example (without polluting user round stats)
+        window.addEventListener('DOMContentLoaded', () => {
+            resizeCanvas();
+            simulateCircle(false, false);
+        });
+    </script>
+</body>
+</html>
