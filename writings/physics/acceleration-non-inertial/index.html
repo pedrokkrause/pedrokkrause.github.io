@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Effective Acceleration in a Rotating Reference Frame</title>
+    <!-- Tailwind CSS for responsive layout -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- KaTeX for crisp LaTeX mathematical rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1e1e2f;
+            --text-color: #f8f8f2;
+            --container-bg: #282a36;
+            --canvas-bg: #191a21;
+            --card-inner: #21222c;
+            --purple: #bd93f9;
+            --green: #50fa7b;
+            --cyan: #8be9fd;
+            --red: #ff5555;
+            --orange: #ffb86c;
+            --yellow: #f1fa8c;
+            --pink: #ff79c6;
+            --muted: #6272a4;
+            --border-color: #44475a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Custom Scrollbar matching Dracula theme */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--purple); }
+
+        .dracula-card {
+            background-color: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-color);
+        }
+
+        .step-card {
+            background-color: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            padding: 24px 28px;
+            margin-bottom: 20px;
+            transition: border-color 0.25s ease, transform 0.2s ease, box-shadow 0.25s ease;
+            position: relative;
+        }
+
+        .step-card:hover {
+            border-color: var(--muted);
+        }
+
+        .step-card.active-step {
+            border-color: var(--purple);
+            box-shadow: 0 0 0 1px var(--purple), 0 10px 24px rgba(189, 147, 249, 0.15);
+        }
+
+        .step-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(189, 147, 249, 0.15);
+            color: var(--purple);
+            border: 1px solid rgba(189, 147, 249, 0.4);
+            font-weight: 700;
+            font-size: 0.78rem;
+            padding: 3px 10px;
+            border-radius: 999px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .math-box {
+            background-color: var(--canvas-bg);
+            border: 1px solid #383a4c;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin: 14px 0;
+            overflow-x: auto;
+            text-align: center;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+
+        .math-box.highlight-coriolis {
+            border-color: var(--green);
+            background-color: rgba(80, 250, 123, 0.07);
+        }
+
+        #physics-canvas {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            max-height: 410px;
+            background-color: var(--canvas-bg);
+            border-radius: 8px;
+            border: 2px solid #44475a;
+            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.85);
+            cursor: grab;
+            touch-action: none;
+            display: block;
+        }
+
+        #physics-canvas:active {
+            cursor: grabbing;
+        }
+
+        /* Custom Range Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--canvas-bg);
+            border-radius: 4px;
+            outline: none;
+            border: 1px solid #44475a;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--purple);
+            cursor: pointer;
+            border: 2px solid var(--text-color);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+
+        .btn-dracula {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.82rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-dracula:active {
+            transform: scale(0.96);
+        }
+
+        .preset-pill {
+            background-color: #343746;
+            color: var(--text-color);
+            border: 1px solid #44475a;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.76rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+        }
+
+        .preset-pill:hover {
+            background-color: #44475a;
+            border-color: var(--cyan);
+        }
+
+        .preset-pill.active {
+            background-color: rgba(189, 147, 249, 0.2);
+            border-color: var(--purple);
+            color: #fff;
+        }
+
+        .term-chip {
+            cursor: pointer;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .term-chip:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .nav-dot {
+            padding: 5px 11px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .nav-dot:hover {
+            color: var(--cyan);
+            border-color: var(--muted);
+        }
+
+        /* KaTeX font size adjustment */
+        .katex { font-size: 1.08em; }
+        .katex-display { margin: 0.4em 0; }
+    </style>
+</head>
+<body>
+
+    <!-- Top Sticky Navigation Header -->
+    <header class="sticky top-0 z-30 border-b border-[#44475a] bg-[#1e1e2f]/95 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-[#282a36] border border-[#bd93f9] flex items-center justify-center font-bold text-[#bd93f9] shadow-inner">
+                    <span style="font-size: 1.2rem;">&#x21BB;</span>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold tracking-tight text-[#f8f8f2] m-0 leading-tight">
+                        Effective Acceleration in a Rotating Frame
+                    </h1>
+                    <p class="text-xs text-[#8be9fd] m-0">
+                        Interactive Classical Mechanics Derivation &amp; Vector Sandbox
+                    </p>
+                </div>
+            </div>
+
+            <!-- Section Jump Pills -->
+            <nav class="hidden xl:flex items-center gap-1.5">
+                <a href="#sec-obj" class="nav-dot">Objective</a>
+                <a href="#sec-1" class="nav-dot">1. Transport</a>
+                <a href="#sec-2" class="nav-dot">2. Velocity</a>
+                <a href="#sec-3" class="nav-dot">3. Inertial $\vec{a}_{\mathcal{I}}$</a>
+                <a href="#sec-4" class="nav-dot">4. Expansion</a>
+                <a href="#sec-5" class="nav-dot">5. Combining</a>
+                <a href="#sec-6" class="nav-dot">6. Final $\vec{a}_{\text{eff}}$</a>
+                <a href="#sec-7" class="nav-dot">7. Fictitious Terms</a>
+            </nav>
+
+            <!-- Audio Toggle -->
+            <div class="flex items-center gap-2">
+                <button id="audio-toggle-btn" type="button" class="btn-dracula bg-[#282a36] text-[#f8f8f2] border border-[#44475a] hover:border-[#bd93f9]" title="Toggle UI Sound Effects">
+                    <span id="audio-icon">&#x1F50A;</span>
+                    <span id="audio-label" class="text-xs">SFX On</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- =================================================================== -->
+            <!-- LEFT COLUMN: STICKY INTERACTIVE ROTATING FRAME PHYSICS SANDBOX      -->
+            <!-- =================================================================== -->
+            <section class="lg:col-span-5 lg:sticky lg:top-20 dracula-card p-5">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-base font-bold text-[#50fa7b] m-0 flex items-center gap-2">
+                        <span>&#x1F9ED;</span> Rotating Frame Physics Sandbox
+                    </h2>
+                    <span id="sim-status-badge" class="text-xs font-mono px-2 py-0.5 rounded bg-[#191a21] text-[#8be9fd] border border-[#44475a]">
+                        Mode: Trajectory
+                    </span>
+                </div>
+                <p class="text-xs text-[#cbd5e1] mb-3">
+                    Drag the particle to set <span class="text-[#8be9fd] font-semibold">$\vec{r}$</span>, or drag the cyan arrow tip to adjust <span class="text-[#8be9fd] font-semibold">$\vec{v}_{\mathcal{R}}$</span>.
+                </p>
+
+                <!-- Frame View Mode Switcher -->
+                <div class="grid grid-cols-3 gap-1.5 bg-[#191a21] p-1 rounded-lg border border-[#44475a] mb-3">
+                    <button type="button" data-view="rotating" class="view-mode-btn btn-dracula py-1.5 text-xs bg-[#bd93f9] text-[#282a36]">
+                        Rotating ($\mathcal{R}$)
+                    </button>
+                    <button type="button" data-view="inertial" class="view-mode-btn btn-dracula py-1.5 text-xs bg-transparent text-[#f8f8f2]">
+                        Inertial ($\mathcal{I}$)
+                    </button>
+                    <button type="button" data-view="split" class="view-mode-btn btn-dracula py-1.5 text-xs bg-transparent text-[#f8f8f2]">
+                        Dual ($\mathcal{I}$ &amp; $\mathcal{R}$)
+                    </button>
+                </div>
+
+                <!-- Interactive Canvas -->
+                <div class="relative mb-3">
+                    <canvas id="physics-canvas"></canvas>
+                </div>
+
+                <!-- Simulation Playback & Mode Controls -->
+                <div class="flex flex-wrap gap-2 mb-3">
+                    <button id="play-pause-btn" type="button" class="btn-dracula flex-1 bg-[#50fa7b] text-[#282a36] hover:bg-[#69ff94]">
+                        &#x23F8; Pause Motion
+                    </button>
+                    <button id="hold-static-btn" type="button" class="btn-dracula flex-1 bg-[#343746] text-[#f8f8f2] border border-[#6272a4] hover:border-[#8be9fd]">
+                        &#x1F4CC; Hold Fixed in $\mathcal{R}$
+                    </button>
+                    <button id="reset-sim-btn" type="button" class="btn-dracula bg-[#6272a4] text-[#f8f8f2] hover:bg-[#7788bd]">
+                        &#x21BA; Reset
+                    </button>
+                </div>
+
+                <!-- Presets Grid -->
+                <div class="mb-3">
+                    <div class="text-xs font-bold text-[#bd93f9] uppercase tracking-wider mb-1.5">
+                        Demonstration Presets
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button type="button" data-preset="centrifugal" class="preset-pill">
+                            <span class="text-[#ff5555]">&#x25CF;</span> Pure Centrifugal ($\vec{v}_{\mathcal{R}}=0$)
+                        </button>
+                        <button type="button" data-preset="coriolis" class="preset-pill active">
+                            <span class="text-[#50fa7b]">&#x25CF;</span> Coriolis Deflection
+                        </button>
+                        <button type="button" data-preset="euler" class="preset-pill">
+                            <span class="text-[#ffb86c]">&#x25CF;</span> Spinning Up ($\dot{\omega} \neq 0$)
+                        </button>
+                        <button type="button" data-preset="merry" class="preset-pill">
+                            <span class="text-[#8be9fd]">&#x25CF;</span> Merry-Go-Round Throw
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Parameter Sliders -->
+                <div class="space-y-2.5 bg-[#21222c] p-3 rounded-lg border border-[#44475a] mb-3">
+                    <!-- Angular Velocity omega -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="font-semibold text-[#f1fa8c]">Angular Velocity $\omega_z$</span>
+                            <span id="val-omega" class="font-mono font-bold text-[#f1fa8c]">+1.20 rad/s</span>
+                        </div>
+                        <input id="slider-omega" type="range" min="-2.5" max="2.5" step="0.05" value="1.20">
+                    </div>
+
+                    <!-- Angular Acceleration d(omega)/dt -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="font-semibold text-[#ffb86c]">Angular Accel $d\omega_z/dt$ (Euler)</span>
+                            <span id="val-alpha" class="font-mono font-bold text-[#ffb86c]">0.00 rad/s²</span>
+                        </div>
+                        <input id="slider-alpha" type="range" min="-1.5" max="1.5" step="0.05" value="0.00">
+                    </div>
+
+                    <!-- Rotating Speed |v_R| -->
+                    <div>
+                        <div class="flex justify-between text-xs mb-1">
+                            <span class="font-semibold text-[#8be9fd]">Rotating Speed $|\vec{v}_{\mathcal{R}}|$</span>
+                            <span id="val-speed" class="font-mono font-bold text-[#8be9fd]">1.10 m/s</span>
+                        </div>
+                        <input id="slider-speed" type="range" min="0" max="2.5" step="0.05" value="1.10">
+                    </div>
+                </div>
+
+                <!-- Live Vector Legend & Numerical Readouts -->
+                <div class="bg-[#191a21] p-3 rounded-lg border border-[#44475a] text-xs space-y-1.5">
+                    <div class="flex items-center justify-between font-bold text-[#94a3b8] border-b border-[#343746] pb-1 mb-1">
+                        <span>VECTOR TERM (CLICK TO ISOLATE)</span>
+                        <span class="font-mono">MAGNITUDE</span>
+                    </div>
+
+                    <!-- Position & Velocity -->
+                    <div class="flex items-center justify-between py-0.5">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#8be9fd]"></span>
+                            <span>Position $|\vec{r}|$ &amp; Speed $|\vec{v}_{\mathcal{R}}|$</span>
+                        </span>
+                        <span id="readout-rv" class="font-mono font-bold text-[#8be9fd]">0.80 m | 1.10 m/s</span>
+                    </div>
+
+                    <!-- Centrifugal -->
+                    <div data-focus="centrifugal" class="vector-row flex items-center justify-between py-1 px-1.5 rounded cursor-pointer hover:bg-[#282a36] transition">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#ff5555]"></span>
+                            <span>Centrifugal: $-\vec{\omega} \times (\vec{\omega} \times \vec{r})$</span>
+                        </span>
+                        <span id="readout-cent" class="font-mono font-bold text-[#ff5555]">0.00 m/s²</span>
+                    </div>
+
+                    <!-- Coriolis -->
+                    <div data-focus="coriolis" class="vector-row flex items-center justify-between py-1 px-1.5 rounded cursor-pointer hover:bg-[#282a36] transition">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#50fa7b]"></span>
+                            <span>Coriolis: $-2\vec{\omega} \times \vec{v}_{\mathcal{R}}$</span>
+                        </span>
+                        <span id="readout-cor" class="font-mono font-bold text-[#50fa7b]">0.00 m/s²</span>
+                    </div>
+
+                    <!-- Euler -->
+                    <div data-focus="euler" class="vector-row flex items-center justify-between py-1 px-1.5 rounded cursor-pointer hover:bg-[#282a36] transition">
+                        <span class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#ffb86c]"></span>
+                            <span>Euler: $-\frac{d\vec{\omega}}{dt} \times \vec{r}$</span>
+                        </span>
+                        <span id="readout-euler" class="font-mono font-bold text-[#ffb86c]">0.00 m/s²</span>
+                    </div>
+
+                    <!-- Total Effective Acceleration -->
+                    <div data-focus="all" class="vector-row flex items-center justify-between pt-1.5 mt-1 border-t border-[#343746] px-1.5 rounded cursor-pointer hover:bg-[#282a36] transition">
+                        <span class="flex items-center gap-2 font-bold text-[#bd93f9]">
+                            <span class="w-2.5 h-2.5 rounded-full inline-block bg-[#bd93f9]"></span>
+                            <span>Total Effective $|\vec{a}_{\text{eff}}|$</span>
+                        </span>
+                        <span id="readout-eff" class="font-mono font-bold text-[#bd93f9]">0.00 m/s²</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- =================================================================== -->
+            <!-- RIGHT COLUMN: COMPLETE 8-STEP INTERACTIVE MATHEMATICAL DERIVATION   -->
+            <!-- =================================================================== -->
+            <section class="lg:col-span-7">
+
+                <!-- Objective Card -->
+                <article id="sec-obj" class="step-card active-step">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Objective</span>
+                        <span class="text-xs text-[#8be9fd] font-mono">Classical Mechanics · Non-Inertial Frames</span>
+                    </div>
+                    <h2 class="text-xl font-bold text-[#f8f8f2] mt-1 mb-2">
+                        Derivation of the Effective Acceleration Equation in a Rotating Reference Frame
+                    </h2>
+                    <p class="text-sm text-[#e2e8f0] m-0">
+                        To derive the expression for the <strong>effective acceleration</strong> $\vec{a}_{\text{eff}}$ observed in a rotating reference frame ($\mathcal{R}$), taking into account the fictitious forces (<span class="text-[#ff5555] font-semibold">centrifugal</span>, <span class="text-[#50fa7b] font-semibold">Coriolis</span>, and <span class="text-[#ffb86c] font-semibold">Euler</span> accelerations) that arise purely from the rotation of the coordinate system.
+                    </p>
+                </article>
+
+                <!-- Step 1: Basic Concepts -->
+                <article id="sec-1" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 1</span>
+                        <button type="button" onclick="triggerStepAction(1)" class="text-xs text-[#8be9fd] hover:underline font-semibold">
+                            &#x1F441; Compare $\mathcal{I}$ &amp; $\mathcal{R}$ in Dual View &rarr;
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">1. Basic Concepts &amp; The Transport Theorem</h3>
+                    <p class="text-sm text-[#e2e8f0] mb-3">
+                        We consider two frames of reference sharing a common origin:
+                    </p>
+                    <ul class="text-sm space-y-1.5 mb-3 pl-5 list-disc text-[#e2e8f0]">
+                        <li>
+                            <strong class="text-[#f8f8f2]">Inertial Frame ($\mathcal{I}$):</strong> A frame that is not accelerating or rotating, where Newton's laws hold in their simplest form ($\vec{F} = m\vec{a}_{\mathcal{I}}$).
+                        </li>
+                        <li>
+                            <strong class="text-[#8be9fd]">Rotating Frame ($\mathcal{R}$):</strong> A frame that rotates with an angular velocity vector $\vec{\omega}(t)$ relative to the inertial frame.
+                        </li>
+                    </ul>
+                    <p class="text-sm text-[#e2e8f0] mb-2">
+                        Because the basis unit vectors $(\hat{e}_1, \hat{e}_2, \hat{e}_3)$ of $\mathcal{R}$ rotate at rate $\frac{d\hat{e}_i}{dt} = \vec{\omega} \times \hat{e}_i$, for <em>any</em> differentiable vector $\vec{A}$, the relationship between its time derivative in the inertial and rotating frames (the <strong>Transport Theorem</strong>) is given by:
+                    </p>
+                    <div class="math-box">
+                        $$ \left( \frac{d\vec{A}}{dt} \right)_{\mathcal{I}} = \left( \frac{d\vec{A}}{dt} \right)_{\mathcal{R}} + \vec{\omega} \times \vec{A} $$
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mt-3">
+                        <div class="bg-[#21222c] p-2.5 rounded border border-[#44475a]">
+                            <div class="font-bold text-[#f8f8f2] mb-1">$\left( \frac{d\vec{A}}{dt} \right)_{\mathcal{I}}$</div>
+                            <span class="text-[#cbd5e1]">Time rate of change measured by a stationary inertial observer.</span>
+                        </div>
+                        <div class="bg-[#21222c] p-2.5 rounded border border-[#44475a]">
+                            <div class="font-bold text-[#8be9fd] mb-1">$\left( \frac{d\vec{A}}{dt} \right)_{\mathcal{R}}$</div>
+                            <span class="text-[#cbd5e1]">Time rate of change of components measured inside the rotating frame.</span>
+                        </div>
+                        <div class="bg-[#21222c] p-2.5 rounded border border-[#44475a]">
+                            <div class="font-bold text-[#f1fa8c] mb-1">$\vec{\omega} \times \vec{A}$</div>
+                            <span class="text-[#cbd5e1]">Apparent change caused by the rotation of the coordinate axes.</span>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 2: Position and Velocity Vectors -->
+                <article id="sec-2" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 2</span>
+                        <button type="button" onclick="triggerStepAction(2)" class="text-xs text-[#8be9fd] hover:underline font-semibold">
+                            &#x1F441; Inspect $\vec{r}$ and $\vec{v}_{\mathcal{R}}$ on Canvas &rarr;
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">2. Position and Velocity Vectors</h3>
+                    <p class="text-sm text-[#e2e8f0] mb-2">
+                        Let $\vec{r}$ be the position vector of the particle in both frames (assuming their origins coincide):
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 my-2">
+                        <div class="math-box m-0">
+                            <div class="text-xs text-[#94a3b8] mb-1">Velocity in Inertial Frame ($\vec{v}_{\mathcal{I}}$)</div>
+                            $$ \vec{v}_{\mathcal{I}} = \left( \frac{d\vec{r}}{dt} \right)_{\mathcal{I}} $$
+                        </div>
+                        <div class="math-box m-0">
+                            <div class="text-xs text-[#8be9fd] mb-1">Velocity in Rotating Frame ($\vec{v}_{\mathcal{R}}$)</div>
+                            $$ \vec{v}_{\mathcal{R}} = \left( \frac{d\vec{r}}{dt} \right)_{\mathcal{R}} $$
+                        </div>
+                    </div>
+                    <p class="text-sm text-[#e2e8f0] mt-3 mb-1">
+                        Applying the Transport Theorem from Step 1 to the position vector $\vec{A} = \vec{r}$:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{v}_{\mathcal{I}} = \vec{v}_{\mathcal{R}} + \vec{\omega} \times \vec{r} $$
+                    </div>
+                </article>
+
+                <!-- Step 3: Acceleration in the Inertial Frame -->
+                <article id="sec-3" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 3</span>
+                        <span class="text-xs text-[#94a3b8] font-mono">Differentiating Velocity in $\mathcal{I}$</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">3. Acceleration in the Inertial Frame</h3>
+                    <p class="text-sm text-[#e2e8f0] mb-2">
+                        The true acceleration in the inertial frame is the inertial time derivative of $\vec{v}_{\mathcal{I}}$:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{a}_{\mathcal{I}} = \left( \frac{d\vec{v}_{\mathcal{I}}}{dt} \right)_{\mathcal{I}} $$
+                    </div>
+                    <p class="text-sm text-[#e2e8f0] my-2">
+                        To express $\vec{a}_{\mathcal{I}}$ in terms of quantities measured in the rotating frame, we substitute $\vec{v}_{\mathcal{I}} = \vec{v}_{\mathcal{R}} + \vec{\omega} \times \vec{r}$ and differentiate with respect to time in $\mathcal{I}$:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{a}_{\mathcal{I}} = \left( \frac{d}{dt} \left( \vec{v}_{\mathcal{R}} + \vec{\omega} \times \vec{r} \right) \right)_{\mathcal{I}} $$
+                    </div>
+                    <p class="text-sm text-[#e2e8f0] my-2">
+                        By linearity, we apply the inertial time derivative operator to both terms separately:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{a}_{\mathcal{I}} = \underbrace{\left( \frac{d\vec{v}_{\mathcal{R}}}{dt} \right)_{\mathcal{I}}}_{\text{First Term}} + \underbrace{\left( \frac{d}{dt} \left( \vec{\omega} \times \vec{r} \right) \right)_{\mathcal{I}}}_{\text{Second Term}} $$
+                    </div>
+                </article>
+
+                <!-- Step 4: Expanding Each Term -->
+                <article id="sec-4" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 4</span>
+                        <button id="coriolis-twin-btn" type="button" onclick="toggleCoriolisHighlight()" class="btn-dracula py-1 px-2.5 bg-[#50fa7b]/20 text-[#50fa7b] border border-[#50fa7b]/50 text-xs">
+                            &#x2728; Highlight Origin of the Factor of 2 in Coriolis
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">4. Expanding Each Term</h3>
+
+                    <p class="text-sm font-bold text-[#bd93f9] mb-1">First Term (Applying the Transport Theorem to $\vec{A} = \vec{v}_{\mathcal{R}}$):</p>
+                    <div id="cor-box-1" class="math-box">
+                        $$ \left( \frac{d\vec{v}_{\mathcal{R}}}{dt} \right)_{\mathcal{I}} = \left( \frac{d\vec{v}_{\mathcal{R}}}{dt} \right)_{\mathcal{R}} + \vec{\omega} \times \vec{v}_{\mathcal{R}} = \vec{a}_{\mathcal{R}} + \vec{\omega} \times \vec{v}_{\mathcal{R}} $$
+                    </div>
+
+                    <p class="text-sm font-bold text-[#bd93f9] mt-3 mb-1">Second Term (Product rule on $\vec{\omega} \times \vec{r}$):</p>
+                    <div class="math-box">
+                        $$ \left( \frac{d}{dt} \left( \vec{\omega} \times \vec{r} \right) \right)_{\mathcal{I}} = \frac{d\vec{\omega}}{dt} \times \vec{r} + \vec{\omega} \times \left( \frac{d\vec{r}}{dt} \right)_{\mathcal{I}} $$
+                    </div>
+
+                    <p class="text-sm text-[#e2e8f0] my-2">
+                        Since $\left(\frac{d\vec{r}}{dt}\right)_{\mathcal{I}} = \vec{v}_{\mathcal{I}} = \vec{v}_{\mathcal{R}} + \vec{\omega} \times \vec{r}$, substituting this into $\vec{\omega} \times \vec{v}_{\mathcal{I}}$ yields:
+                    </p>
+                    <div id="cor-box-2" class="math-box">
+                        $$ \vec{\omega} \times \vec{v}_{\mathcal{I}} = \vec{\omega} \times \vec{v}_{\mathcal{R}} + \vec{\omega} \times (\vec{\omega} \times \vec{r}) $$
+                    </div>
+
+                    <div id="coriolis-insight" class="hidden mt-3 p-3 rounded-lg bg-[#50fa7b]/10 border border-[#50fa7b] text-xs text-[#e2e8f0]">
+                        <strong class="text-[#50fa7b]">Why is there a factor of $2$ in $-2\vec{\omega} \times \vec{v}_{\mathcal{R}}$?</strong><br>
+                        Notice that $\vec{\omega} \times \vec{v}_{\mathcal{R}}$ arises from <strong>two distinct physical effects</strong> of equal magnitude:
+                        <ol class="list-decimal pl-5 mt-1 space-y-1">
+                            <li><strong>First Term:</strong> The velocity vector $\vec{v}_{\mathcal{R}}$ is measured relative to rotating axes whose directions change in time ($\vec{\omega} \times \vec{v}_{\mathcal{R}}$).</li>
+                            <li><strong>Second Term:</strong> As the particle moves radially/tangentially with velocity $\vec{v}_{\mathcal{R}}$, the frame's sweep velocity $\vec{\omega} \times \vec{r}$ changes at rate $\vec{\omega} \times \vec{v}_{\mathcal{R}}$.</li>
+                        </ol>
+                    </div>
+                </article>
+
+                <!-- Step 5: Effective Acceleration in Inertial Form -->
+                <article id="sec-5" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 5</span>
+                        <span class="text-xs text-[#94a3b8] font-mono">Combining All 4 Contributions</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">5. Combining the Terms</h3>
+                    <p class="text-sm text-[#e2e8f0] mb-2">
+                        Summing the expanded First and Second terms together, the two $\vec{\omega} \times \vec{v}_{\mathcal{R}}$ terms combine into $2\vec{\omega} \times \vec{v}_{\mathcal{R}}$:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{a}_{\mathcal{I}} = \vec{a}_{\mathcal{R}} + 2\vec{\omega} \times \vec{v}_{\mathcal{R}} + \frac{d\vec{\omega}}{dt} \times \vec{r} + \vec{\omega} \times (\vec{\omega} \times \vec{r}) $$
+                    </div>
+                </article>
+
+                <!-- Step 6: Final Form of the Effective Acceleration -->
+                <article id="sec-6" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 6</span>
+                        <button type="button" onclick="triggerStepAction(6)" class="text-xs text-[#bd93f9] hover:underline font-semibold">
+                            &#x1F441; Show Total $\vec{a}_{\text{eff}}$ Vector in Sandbox &rarr;
+                        </button>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">6. Final Form of the Effective Acceleration</h3>
+                    <p class="text-sm text-[#e2e8f0] mb-2">
+                        To find the acceleration $\vec{a}_{\mathcal{R}}$ as observed inside the rotating frame, we solve the equation in Step 5 for $\vec{a}_{\mathcal{R}}$:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{a}_{\mathcal{R}} = \vec{a}_{\mathcal{I}} - \vec{\omega} \times (\vec{\omega} \times \vec{r}) - 2\vec{\omega} \times \vec{v}_{\mathcal{R}} - \frac{d\vec{\omega}}{dt} \times \vec{r} $$
+                    </div>
+                    <p class="text-sm text-[#e2e8f0] my-2">
+                        Thus, defining $\vec{a}_{\text{eff}} \equiv \vec{a}_{\mathcal{R}}$, the <strong>effective acceleration</strong> in the rotating frame is:
+                    </p>
+                    <div class="math-box border-[#bd93f9]">
+                        $$ \vec{a}_{\text{eff}} = \vec{a}_{\mathcal{I}} - \vec{\omega} \times (\vec{\omega} \times \vec{r}) - 2\vec{\omega} \times \vec{v}_{\mathcal{R}} - \frac{d\vec{\omega}}{dt} \times \vec{r} $$
+                    </div>
+                </article>
+
+                <!-- Step 7: Interactive Interpretation of Terms -->
+                <article id="sec-7" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 7</span>
+                        <span class="text-xs text-[#8be9fd] font-mono">Click any card below to simulate on the turntable</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-3">7. Physical Interpretation of Fictitious Terms</h3>
+
+                    <div class="space-y-3">
+                        <!-- Centrifugal Card -->
+                        <div onclick="selectPreset('centrifugal', 'centrifugal')" class="term-chip border-l-4 border-l-[#ff5555]">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                <span class="font-bold text-[#ff5555] text-sm">
+                                    &#x25CF; Centrifugal Acceleration: $-\vec{\omega} \times (\vec{\omega} \times \vec{r})$
+                                </span>
+                                <span class="text-xs bg-[#ff5555]/20 text-[#ff5555] px-2 py-0.5 rounded font-mono">
+                                    Click to Simulate &rarr;
+                                </span>
+                            </div>
+                            <p class="text-xs text-[#e2e8f0] m-0">
+                                Always acts radially <strong>outward</strong> perpendicular to the axis of rotation with magnitude $\omega^2 r_{\perp}$. It depends only on position $\vec{r}$ and angular speed $|\vec{\omega}|$, even when the particle is stationary in $\mathcal{R}$.
+                            </p>
+                        </div>
+
+                        <!-- Coriolis Card -->
+                        <div onclick="selectPreset('coriolis', 'coriolis')" class="term-chip border-l-4 border-l-[#50fa7b]">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                <span class="font-bold text-[#50fa7b] text-sm">
+                                    &#x25CF; Coriolis Acceleration: $-2\vec{\omega} \times \vec{v}_{\mathcal{R}}$
+                                </span>
+                                <span class="text-xs bg-[#50fa7b]/20 text-[#50fa7b] px-2 py-0.5 rounded font-mono">
+                                    Click to Simulate &rarr;
+                                </span>
+                            </div>
+                            <p class="text-xs text-[#e2e8f0] m-0">
+                                Acts <strong>perpendicular</strong> to both $\vec{\omega}$ and the rotating velocity $\vec{v}_{\mathcal{R}}$. In a counter-clockwise rotating frame ($\omega_z > 0$), it deflects moving objects to the <strong>right</strong> of their direction of travel, doing zero work since $\vec{a}_{\text{cor}} \perp \vec{v}_{\mathcal{R}}$.
+                            </p>
+                        </div>
+
+                        <!-- Euler Card -->
+                        <div onclick="selectPreset('euler', 'euler')" class="term-chip border-l-4 border-l-[#ffb86c]">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                <span class="font-bold text-[#ffb86c] text-sm">
+                                    &#x25CF; Euler (Azimuthal) Acceleration: $-\frac{d\vec{\omega}}{dt} \times \vec{r}$
+                                </span>
+                                <span class="text-xs bg-[#ffb86c]/20 text-[#ffb86c] px-2 py-0.5 rounded font-mono">
+                                    Click to Simulate &rarr;
+                                </span>
+                            </div>
+                            <p class="text-xs text-[#e2e8f0] m-0">
+                                Occurs only when the angular velocity $\vec{\omega}(t)$ is <strong>changing over time</strong> ($d\vec{\omega}/dt \neq 0$). It pushes tangentially opposite to the angular acceleration — the backward jerk you feel when a carousel suddenly starts spinning up.
+                            </p>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Step 8: Summary & Interactive Master Equation -->
+                <article id="sec-8" class="step-card">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="step-badge">Step 8</span>
+                        <span class="text-xs text-[#f1fa8c] font-mono">Summary</span>
+                    </div>
+                    <h3 class="text-lg font-bold text-[#50fa7b] mt-0 mb-2">8. Summary</h3>
+                    <p class="text-sm text-[#e2e8f0] mb-3">
+                        The complete equation of motion in a rotating reference frame replaces the inertial acceleration with the effective acceleration:
+                    </p>
+                    <div class="math-box">
+                        $$ \vec{a}_{\text{eff}} = \vec{a}_{\mathcal{I}} \color{#ff5555}{-\vec{\omega} \times (\vec{\omega} \times \vec{r})} \color{#50fa7b}{- 2\vec{\omega} \times \vec{v}_{\mathcal{R}}} \color{#ffb86c}{- \frac{d\vec{\omega}}{dt} \times \vec{r}} $$
+                    </div>
+                    <ul class="text-sm space-y-1.5 mt-3 pl-5 list-disc text-[#e2e8f0]">
+                        <li>
+                            <strong>$\vec{a}_{\mathcal{I}} = \vec{F}_{\text{real}}/m$</strong> is the true inertial acceleration caused by physical interactions.
+                        </li>
+                        <li>
+                            The three subtracted terms represent the <strong>centrifugal</strong>, <strong>Coriolis</strong>, and <strong>Euler</strong> accelerations that account for the non-inertial nature of the rotating coordinate system $\mathcal{R}$.
+                        </li>
+                    </ul>
+                </article>
+
+            </section>
+        </div>
+    </main>
+
+    <script>
+        // ============================================================================
+        // WEB AUDIO ENGINE (Dracula Portfolio Style with Mute Toggle)
+        // ============================================================================
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!soundEnabled || !AudioContextClass) return;
+            if (!audioCtx) audioCtx = new AudioContextClass();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playTone(freq, type, duration, vol) {
+            if (!soundEnabled || !audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playPopSound() {
+            initAudio();
+            playTone(580, 'sine', 0.045, 0.04);
+            setTimeout(() => playTone(780, 'sine', 0.05, 0.04), 45);
+        }
+
+        function playPresetSound() {
+            initAudio();
+            playTone(330, 'triangle', 0.08, 0.05);
+            setTimeout(() => playTone(440, 'triangle', 0.1, 0.05), 60);
+            setTimeout(() => playTone(659.25, 'triangle', 0.14, 0.05), 120);
+        }
+
+        // ============================================================================
+        // ROTATING REFERENCE FRAME PHYSICS ENGINE & SANDBOX
+        // ============================================================================
+        const canvas = document.getElementById('physics-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Physical scale: turntable radius R_disk = 1.5 meters
+        const WORLD_RADIUS = 1.65; // meters visible from center to edge
+
+        const state = {
+            // Rotating frame coordinates (meters) and velocity (m/s)
+            x: 0.55,
+            y: -0.45,
+            vx: -0.35,
+            vy: 1.05,
+            // Initial state for reset/re-loop
+            initX: 0.55,
+            initY: -0.45,
+            initVx: -0.35,
+            initVy: 1.05,
+            // Angular kinematics
+            omega: 1.20,       // rad/s
+            alpha: 0.00,       // d(omega)/dt in rad/s^2
+            thetaFrame: 0.0,   // Cumulative angle of R relative to I (radians)
+            // Simulation flags
+            viewMode: 'rotating', // 'rotating' | 'inertial' | 'split'
+            isPaused: false,
+            holdStaticInR: false, // If true, particle stays fixed at (x, y) in R to inspect vectors
+            focusTerm: 'all',     // 'all' | 'centrifugal' | 'coriolis' | 'euler'
+            // Trail histories in R and I
+            trailR: [],
+            trailI: [],
+            // Dragging interaction
+            dragging: null // null | 'particle' | 'velocity'
+        };
+
+        // Compute accelerations in Rotating Frame R at state (x, y, vx, vy, omega, alpha)
+        function computeAccelerations(x, y, vx, vy, omega, alpha) {
+            // Centrifugal: -omega x (omega x r) = (omega^2 * x, omega^2 * y)
+            const aCentX = omega * omega * x;
+            const aCentY = omega * omega * y;
+
+            // Coriolis: -2 * omega x v_R = (2 * omega * vy, -2 * omega * vx)
+            const aCorX = 2.0 * omega * vy;
+            const aCorY = -2.0 * omega * vx;
+
+            // Euler: -alpha x r = (alpha * y, -alpha * x)
+            const aEulerX = alpha * y;
+            const aEulerY = -alpha * x;
+
+            // Total effective acceleration (assuming free particle in I: a_I = 0)
+            const aEffX = aCentX + aCorX + aEulerX;
+            const aEffY = aCentY + aCorY + aEulerY;
+
+            return {
+                cent: { x: aCentX, y: aCentY, mag: Math.hypot(aCentX, aCentY) },
+                cor:  { x: aCorX,  y: aCorY,  mag: Math.hypot(aCorX, aCorY) },
+                euler:{ x: aEulerX,y: aEulerY,mag: Math.hypot(aEulerX, aEulerY) },
+                eff:  { x: aEffX,  y: aEffY,  mag: Math.hypot(aEffX, aEffY) }
+            };
+        }
+
+        // Convert Rotating coordinates (x_R, y_R) to Inertial coordinates (x_I, y_I)
+        function rotToInertial(xR, yR, theta) {
+            const c = Math.cos(theta);
+            const s = Math.sin(theta);
+            return {
+                x: xR * c - yR * s,
+                y: xR * s + yR * c
+            };
+        }
+
+        // Convert Inertial coordinates (x_I, y_I) to Rotating coordinates (x_R, y_R)
+        function inertialToRot(xI, yI, theta) {
+            const c = Math.cos(theta);
+            const s = Math.sin(theta);
+            return {
+                x:  xI * c + yI * s,
+                y: -xI * s + yI * c
+            };
+        }
+
+        // RK4 integration step for particle in Rotating Frame R
+        function stepPhysics(dt) {
+            if (state.isPaused) return;
+
+            // Update turntable angle and angular velocity if alpha != 0
+            const prevOmega = state.omega;
+            if (!state.holdStaticInR && Math.abs(state.alpha) > 1e-5) {
+                state.omega = Math.max(-3.0, Math.min(3.0, state.omega + state.alpha * dt));
+                document.getElementById('slider-omega').value = state.omega.toFixed(2);
+                updateSliderLabels();
+            }
+            const midOmega = 0.5 * (prevOmega + state.omega);
+            state.thetaFrame += midOmega * dt;
+
+            if (state.holdStaticInR) {
+                //Even when held fixed in R, record inertial circle path
+                const pI = rotToInertial(state.x, state.y, state.thetaFrame);
+                state.trailI.push(pI);
+                if (state.trailI.length > 140) state.trailI.shift();
+                return;
+            }
+
+            // RK4 derivative function: [vx, vy, ax, ay]
+            function deriv(x, y, vx, vy, om) {
+                const acc = computeAccelerations(x, y, vx, vy, om, state.alpha);
+                return [vx, vy, acc.eff.x, acc.eff.y];
+            }
+
+            const k1 = deriv(state.x, state.y, state.vx, state.vy, prevOmega);
+            const k2 = deriv(
+                state.x + 0.5 * dt * k1[0],
+                state.y + 0.5 * dt * k1[1],
+                state.vx + 0.5 * dt * k1[2],
+                state.vy + 0.5 * dt * k1[3],
+                midOmega
+            );
+            const k3 = deriv(
+                state.x + 0.5 * dt * k2[0],
+                state.y + 0.5 * dt * k2[1],
+                state.vx + 0.5 * dt * k2[2],
+                state.vy + 0.5 * dt * k2[3],
+                midOmega
+            );
+            const k4 = deriv(
+                state.x + dt * k3[0],
+                state.y + dt * k3[1],
+                state.vx + dt * k3[2],
+                state.vy + dt * k3[3],
+                state.omega
+            );
+
+            state.x  += (dt / 6.0) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
+            state.y  += (dt / 6.0) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+            state.vx += (dt / 6.0) * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+            state.vy += (dt / 6.0) * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3]);
+
+            // Record trails
+            state.trailR.push({ x: state.x, y: state.y });
+            const pI = rotToInertial(state.x, state.y, state.thetaFrame);
+            state.trailI.push(pI);
+
+            if (state.trailR.length > 180) state.trailR.shift();
+            if (state.trailI.length > 180) state.trailI.shift();
+
+            // Auto-relaunch if particle leaves the turntable boundary (r > 1.48 m)
+            if (Math.hypot(state.x, state.y) > 1.48) {
+                resetToInitialTrajectory();
+            }
+        }
+
+        function resetToInitialTrajectory() {
+            state.x = state.initX;
+            state.y = state.initY;
+            state.vx = state.initVx;
+            state.vy = state.initVy;
+            state.trailR = [{ x: state.x, y: state.y }];
+            state.trailI = [rotToInertial(state.x, state.y, state.thetaFrame)];
+        }
+
+        // ============================================================================
+        // CANVAS RENDERING (Supports Rotating View, Inertial View, and Dual Split View)
+        // ============================================================================
+        let canvasWidth = 400;
+        let canvasHeight = 400;
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvasWidth = rect.width;
+            canvasHeight = rect.height;
+            canvas.width = Math.round(canvasWidth * dpr);
+            canvas.height = Math.round(canvasHeight * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+
+        function drawArrow(cx, cy, scale, x0, y0, dx, dy, color, label, isHighlighted = true) {
+            const mag = Math.hypot(dx, dy);
+            if (mag < 1e-3) return;
+
+            const sx0 = cx + x0 * scale;
+            const sy0 = cy - y0 * scale;
+            const sx1 = cx + (x0 + dx) * scale;
+            const sy1 = cy - (y0 + dy) * scale;
+
+            ctx.save();
+            ctx.globalAlpha = isHighlighted ? 1.0 : 0.22;
+            ctx.strokeStyle = color;
+            ctx.fillStyle = color;
+            ctx.lineWidth = isHighlighted ? 2.6 : 1.5;
+
+            ctx.beginPath();
+            ctx.moveTo(sx0, sy0);
+            ctx.lineTo(sx1, sy1);
+            ctx.stroke();
+
+            // Arrowhead
+            const angle = Math.atan2(sy1 - sy0, sx1 - sx0);
+            const headLen = 8;
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(sx1 - headLen * Math.cos(angle - Math.PI / 6), sy1 - headLen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(sx1 - headLen * Math.cos(angle + Math.PI / 6), sy1 - headLen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            if (label && isHighlighted) {
+                ctx.font = 'bold 11px "Segoe UI", sans-serif';
+                ctx.fillText(label, sx1 + 6 * Math.cos(angle), sy1 + 6 * Math.sin(angle));
+            }
+            ctx.restore();
+        }
+
+        function renderViewport(vpX, vpY, vpW, vpH, modeTitle, isInertialView) {
+            const cx = vpX + vpW / 2;
+            const cy = vpY + vpH / 2;
+            const scale = (Math.min(vpW, vpH) * 0.45) / WORLD_RADIUS;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(vpX, vpY, vpW, vpH);
+            ctx.clip();
+
+            // 1. Draw Inertial Frame (I) background grid (rotates by -thetaFrame in R view, fixed in I view)
+            const inertialGridAngle = isInertialView ? 0.0 : -state.thetaFrame;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-inertialGridAngle); // Negative because canvas Y is down
+            ctx.strokeStyle = '#252736';
+            ctx.lineWidth = 1;
+            const gridStep = 0.5 * scale;
+            for (let g = -3; g <= 3; g++) {
+                ctx.beginPath();
+                ctx.moveTo(g * gridStep, -vpH);
+                ctx.lineTo(g * gridStep, vpH);
+                ctx.moveTo(-vpW, g * gridStep);
+                ctx.lineTo(vpW, g * gridStep);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 2. Draw Rotating Turntable Disk (R)
+            const diskRadiusPx = 1.45 * scale;
+            const diskAngle = isInertialView ? state.thetaFrame : 0.0;
+
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(-diskAngle);
+
+            // Turntable fill & rim
+            ctx.fillStyle = 'rgba(40, 42, 54, 0.55)';
+            ctx.strokeStyle = '#6272a4';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(0, 0, diskRadiusPx, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Concentric reference rings on the turntable
+            ctx.strokeStyle = 'rgba(98, 114, 164, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            [0.5, 1.0].forEach(rRing => {
+                ctx.beginPath();
+                ctx.arc(0, 0, rRing * scale, 0, Math.PI * 2);
+                ctx.stroke();
+            });
+
+            // Rotating axes x_R, y_R
+            ctx.setLineDash([]);
+            ctx.strokeStyle = 'rgba(139, 233, 253, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(-diskRadiusPx, 0);
+            ctx.lineTo(diskRadiusPx, 0);
+            ctx.moveTo(0, -diskRadiusPx);
+            ctx.lineTo(0, diskRadiusPx);
+            ctx.stroke();
+
+            ctx.fillStyle = '#8be9fd';
+            ctx.font = 'bold 11px monospace';
+            ctx.fillText('+x_R', diskRadiusPx - 32, -6);
+            ctx.fillText('+y_R', 6, -diskRadiusPx + 14);
+            ctx.restore();
+
+            // 3. Draw Trajectory Trail
+            const trail = isInertialView ? state.trailI : state.trailR;
+            if (trail.length > 1) {
+                ctx.save();
+                ctx.strokeStyle = isInertialView ? '#f1fa8c' : '#bd93f9';
+                ctx.lineWidth = 2.2;
+                ctx.beginPath();
+                for (let i = 0; i < trail.length; i++) {
+                    const px = cx + trail[i].x * scale;
+                    const py = cy - trail[i].y * scale;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 4. Determine Particle & Vector Coordinates in this Viewport
+            const rotAngle = isInertialView ? state.thetaFrame : 0.0;
+            const pos = rotToInertial(state.x, state.y, rotAngle);
+            const velR = rotToInertial(state.vx, state.vy, rotAngle);
+            const acc = computeAccelerations(state.x, state.y, state.vx, state.vy, state.omega, state.alpha);
+
+            const vScale = 0.35; // scale velocity vector to meters for visual display
+            const aScale = 0.22; // scale acceleration vectors to meters for visual display
+
+            // Position vector r from origin (subtle cyan dashed)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(139, 233, 253, 0.45)';
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + pos.x * scale, cy - pos.y * scale);
+            ctx.stroke();
+            ctx.restore();
+
+            // Draw v_R vector
+            drawArrow(cx, cy, scale, pos.x, pos.y, velR.x * vScale, velR.y * vScale, '#8be9fd', 'v_R', true);
+
+            // In Rotating Frame view (or split R side), draw fictitious acceleration vectors
+            if (!isInertialView) {
+                const cVec = rotToInertial(acc.cent.x, acc.cent.y, rotAngle);
+                const corVec = rotToInertial(acc.cor.x, acc.cor.y, rotAngle);
+                const eulVec = rotToInertial(acc.euler.x, acc.euler.y, rotAngle);
+                const effVec = rotToInertial(acc.eff.x, acc.eff.y, rotAngle);
+
+                const f = state.focusTerm;
+                drawArrow(cx, cy, scale, pos.x, pos.y, cVec.x * aScale, cVec.y * aScale, '#ff5555', 'a_cent', f === 'all' || f === 'centrifugal');
+                drawArrow(cx, cy, scale, pos.x, pos.y, corVec.x * aScale, corVec.y * aScale, '#50fa7b', 'a_cor', f === 'all' || f === 'coriolis');
+                drawArrow(cx, cy, scale, pos.x, pos.y, eulVec.x * aScale, eulVec.y * aScale, '#ffb86c', 'a_euler', f === 'all' || f === 'euler');
+                drawArrow(cx, cy, scale, pos.x, pos.y, effVec.x * aScale, effVec.y * aScale, '#bd93f9', 'a_eff', f === 'all');
+            }
+
+            // 5. Draw Particle Dot
+            const partPx = cx + pos.x * scale;
+            const partPy = cy - pos.y * scale;
+            ctx.save();
+            ctx.fillStyle = '#f8f8f2';
+            ctx.strokeStyle = '#bd93f9';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(partPx, partPy, 7, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // 6. Viewport Label Banner
+            ctx.save();
+            ctx.fillStyle = 'rgba(25, 26, 33, 0.85)';
+            ctx.fillRect(vpX + 8, vpY + 8, 152, 22);
+            ctx.fillStyle = isInertialView ? '#f1fa8c' : '#bd93f9';
+            ctx.font = 'bold 11px "Segoe UI", sans-serif';
+            ctx.fillText(modeTitle, vpX + 14, vpY + 23);
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        function renderScene() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+            if (state.viewMode === 'rotating') {
+                renderViewport(0, 0, canvasWidth, canvasHeight, 'Rotating Frame (R)', false);
+            } else if (state.viewMode === 'inertial') {
+                renderViewport(0, 0, canvasWidth, canvasHeight, 'Inertial Frame (I)', true);
+            } else {
+                // Split Dual View: Left = Inertial (I), Right = Rotating (R)
+                const halfW = canvasWidth / 2;
+                renderViewport(0, 0, halfW, canvasHeight, 'Inertial Frame (I)', true);
+                renderViewport(halfW, 0, halfW, canvasHeight, 'Rotating Frame (R)', false);
+
+                ctx.save();
+                ctx.strokeStyle = '#44475a';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(halfW, 0);
+                ctx.lineTo(halfW, canvasHeight);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            updateNumericalReadouts();
+        }
+
+        function updateNumericalReadouts() {
+            const rMag = Math.hypot(state.x, state.y);
+            const vMag = Math.hypot(state.vx, state.vy);
+            const acc = computeAccelerations(state.x, state.y, state.vx, state.vy, state.omega, state.alpha);
+
+            document.getElementById('readout-rv').textContent = `${rMag.toFixed(2)} m | ${vMag.toFixed(2)} m/s`;
+            document.getElementById('readout-cent').textContent = `${acc.cent.mag.toFixed(2)} m/s²`;
+            document.getElementById('readout-cor').textContent = `${acc.cor.mag.toFixed(2)} m/s²`;
+            document.getElementById('readout-euler').textContent = `${acc.euler.mag.toFixed(2)} m/s²`;
+            document.getElementById('readout-eff').textContent = `${acc.eff.mag.toFixed(2)} m/s²`;
+        }
+
+        // ============================================================================
+        // INTERACTIVE POINTER DRAGGING ON CANVAS
+        // ============================================================================
+        function canvasEventToRotCoords(evt) {
+            const rect = canvas.getBoundingClientRect();
+            const px = evt.clientX - rect.left;
+            const py = evt.clientY - rect.top;
+
+            let vpX = 0, vpW = canvasWidth, isInertial = (state.viewMode === 'inertial');
+            if (state.viewMode === 'split') {
+                if (px < canvasWidth / 2) {
+                    vpX = 0; vpW = canvasWidth / 2; isInertial = true;
+                } else {
+                    vpX = canvasWidth / 2; vpW = canvasWidth / 2; isInertial = false;
+                }
+            }
+
+            const cx = vpX + vpW / 2;
+            const cy = canvasHeight / 2;
+            const scale = (Math.min(vpW, canvasHeight) * 0.45) / WORLD_RADIUS;
+
+            const wx = (px - cx) / scale;
+            const wy = (cy - py) / scale;
+
+            if (isInertial) {
+                return inertialToRot(wx, wy, state.thetaFrame);
+            }
+            return { x: wx, y: wy };
+        }
+
+        canvas.addEventListener('pointerdown', (evt) => {
+            evt.preventDefault();
+            canvas.setPointerCapture(evt.pointerId);
+            const pt = canvasEventToRotCoords(evt);
+
+            const vTipX = state.x + state.vx * 0.35;
+            const vTipY = state.y + state.vy * 0.35;
+
+            if (Math.hypot(pt.x - vTipX, pt.y - vTipY) < 0.22) {
+                state.dragging = 'velocity';
+            } else {
+                state.dragging = 'particle';
+                state.x = Math.max(-1.35, Math.min(1.35, pt.x));
+                state.y = Math.max(-1.35, Math.min(1.35, pt.y));
+                state.initX = state.x;
+                state.initY = state.y;
+                state.trailR = [{ x: state.x, y: state.y }];
+                state.trailI = [rotToInertial(state.x, state.y, state.thetaFrame)];
+            }
+            playPopSound();
+        });
+
+        canvas.addEventListener('pointermove', (evt) => {
+            if (!state.dragging) return;
+            const pt = canvasEventToRotCoords(evt);
+
+            if (state.dragging === 'particle') {
+                state.x = Math.max(-1.35, Math.min(1.35, pt.x));
+                state.y = Math.max(-1.35, Math.min(1.35, pt.y));
+                state.initX = state.x;
+                state.initY = state.y;
+                state.trailR = [{ x: state.x, y: state.y }];
+                state.trailI = [rotToInertial(state.x, state.y, state.thetaFrame)];
+            } else if (state.dragging === 'velocity') {
+                state.vx = Math.max(-2.5, Math.min(2.5, (pt.x - state.x) / 0.35));
+                state.vy = Math.max(-2.5, Math.min(2.5, (pt.y - state.y) / 0.35));
+                state.initVx = state.vx;
+                state.initVy = state.vy;
+                const spd = Math.hypot(state.vx, state.vy);
+                document.getElementById('slider-speed').value = Math.min(2.5, spd).toFixed(2);
+                updateSliderLabels();
+            }
+        });
+
+        window.addEventListener('pointerup', () => {
+            state.dragging = null;
+        });
+
+        // ============================================================================
+        // UI CONTROLS, PRESETS & DERIVATION INTERACTIVITY
+        // ============================================================================
+        function updateSliderLabels() {
+            const om = parseFloat(document.getElementById('slider-omega').value);
+            const al = parseFloat(document.getElementById('slider-alpha').value);
+            const sp = parseFloat(document.getElementById('slider-speed').value);
+
+            document.getElementById('val-omega').textContent = `${om >= 0 ? '+' : ''}${om.toFixed(2)} rad/s`;
+            document.getElementById('val-alpha').textContent = `${al >= 0 ? '+' : ''}${al.toFixed(2)} rad/s²`;
+            document.getElementById('val-speed').textContent = `${sp.toFixed(2)} m/s`;
+        }
+
+        document.getElementById('slider-omega').addEventListener('input', (e) => {
+            state.omega = parseFloat(e.target.value);
+            updateSliderLabels();
+        });
+
+        document.getElementById('slider-alpha').addEventListener('input', (e) => {
+            state.alpha = parseFloat(e.target.value);
+            updateSliderLabels();
+        });
+
+        document.getElementById('slider-speed').addEventListener('input', (e) => {
+            const newSpeed = parseFloat(e.target.value);
+            const curAngle = Math.atan2(state.vy, state.vx) || 0.75;
+            state.vx = newSpeed * Math.cos(curAngle);
+            state.vy = newSpeed * Math.sin(curAngle);
+            state.initVx = state.vx;
+            state.initVy = state.vy;
+            updateSliderLabels();
+        });
+
+        // View Mode Buttons
+        document.querySelectorAll('.view-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setViewMode(btn.dataset.view);
+                playPopSound();
+            });
+        });
+
+        function setViewMode(mode) {
+            state.viewMode = mode;
+            document.querySelectorAll('.view-mode-btn').forEach(b => {
+                if (b.dataset.view === mode) {
+                    b.className = 'view-mode-btn btn-dracula py-1.5 text-xs bg-[#bd93f9] text-[#282a36]';
+                } else {
+                    b.className = 'view-mode-btn btn-dracula py-1.5 text-xs bg-transparent text-[#f8f8f2]';
+                }
+            });
+        }
+
+        // Play / Pause & Static Hold
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const holdStaticBtn = document.getElementById('hold-static-btn');
+        const statusBadge = document.getElementById('sim-status-badge');
+
+        playPauseBtn.addEventListener('click', () => {
+            state.isPaused = !state.isPaused;
+            playPauseBtn.innerHTML = state.isPaused ? '&#x25B6; Resume Motion' : '&#x23F8; Pause Motion';
+            playPopSound();
+        });
+
+        holdStaticBtn.addEventListener('click', () => {
+            state.holdStaticInR = !state.holdStaticInR;
+            holdStaticBtn.style.borderColor = state.holdStaticInR ? '#50fa7b' : '#6272a4';
+            holdStaticBtn.style.color = state.holdStaticInR ? '#50fa7b' : '#f8f8f2';
+            statusBadge.textContent = state.holdStaticInR ? 'Mode: Static Vector Inspector' : 'Mode: Trajectory';
+            playPopSound();
+        });
+
+        document.getElementById('reset-sim-btn').addEventListener('click', () => {
+            state.thetaFrame = 0.0;
+            resetToInitialTrajectory();
+            playPopSound();
+        });
+
+        // Presets
+        function selectPreset(presetName, focusTerm = 'all') {
+            state.focusTerm = focusTerm;
+            state.isPaused = false;
+            playPauseBtn.innerHTML = '&#x23F8; Pause Motion';
+
+            document.querySelectorAll('.preset-pill').forEach(p => {
+                p.classList.toggle('active', p.dataset.preset === presetName);
+            });
+
+            if (presetName === 'centrifugal') {
+                state.holdStaticInR = true;
+                state.x = 0.85; state.y = 0.35;
+                state.vx = 0.0; state.vy = 0.0;
+                state.omega = 1.45; state.alpha = 0.0;
+            } else if (presetName === 'coriolis') {
+                state.holdStaticInR = false;
+                state.x = 0.55; state.y = -0.45;
+                state.vx = -0.35; state.vy = 1.10;
+                state.omega = 1.25; state.alpha = 0.0;
+            } else if (presetName === 'euler') {
+                state.holdStaticInR = true;
+                state.x = 0.80; state.y = 0.45;
+                state.vx = 0.0; state.vy = 0.0;
+                state.omega = 0.60; state.alpha = 1.20;
+            } else if (presetName === 'merry') {
+                state.holdStaticInR = false;
+                setViewMode('split');
+                state.x = -1.15; state.y = -0.15;
+                // Set velocity so ball travels nearly straight across in Inertial frame
+                state.omega = 1.15; state.alpha = 0.0;
+                state.vx = 1.35; state.vy = 1.32;
+            }
+
+            state.initX = state.x; state.initY = state.y;
+            state.initVx = state.vx; state.initVy = state.vy;
+            state.trailR = [{ x: state.x, y: state.y }];
+            state.trailI = [rotToInertial(state.x, state.y, state.thetaFrame)];
+
+            holdStaticBtn.style.borderColor = state.holdStaticInR ? '#50fa7b' : '#6272a4';
+            holdStaticBtn.style.color = state.holdStaticInR ? '#50fa7b' : '#f8f8f2';
+            statusBadge.textContent = state.holdStaticInR ? 'Mode: Static Vector Inspector' : 'Mode: Trajectory';
+
+            document.getElementById('slider-omega').value = state.omega.toFixed(2);
+            document.getElementById('slider-alpha').value = state.alpha.toFixed(2);
+            document.getElementById('slider-speed').value = Math.hypot(state.vx, state.vy).toFixed(2);
+            updateSliderLabels();
+            playPresetSound();
+        }
+
+        document.querySelectorAll('.preset-pill').forEach(btn => {
+            btn.addEventListener('click', () => selectPreset(btn.dataset.preset, 'all'));
+        });
+
+        // Vector Readout Row Isolation
+        document.querySelectorAll('.vector-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const target = row.dataset.focus;
+                state.focusTerm = (state.focusTerm === target && target !== 'all') ? 'all' : target;
+                playPopSound();
+            });
+        });
+
+        // Step 4 Coriolis Factor of 2 Highlighter
+        function toggleCoriolisHighlight() {
+            const b1 = document.getElementById('cor-box-1');
+            const b2 = document.getElementById('cor-box-2');
+            const insight = document.getElementById('coriolis-insight');
+            b1.classList.toggle('highlight-coriolis');
+            b2.classList.toggle('highlight-coriolis');
+            insight.classList.toggle('hidden');
+            state.focusTerm = 'coriolis';
+            playPresetSound();
+        }
+
+        // Step Quick-Actions
+        function triggerStepAction(stepNum) {
+            if (stepNum === 1) {
+                selectPreset('merry', 'all');
+            } else if (stepNum === 2) {
+                state.holdStaticInR = true;
+                statusBadge.textContent = 'Mode: Static Vector Inspector';
+                playPopSound();
+            } else if (stepNum === 6) {
+                state.focusTerm = 'all';
+                selectPreset('coriolis', 'all');
+            }
+        }
+
+        // Audio Toggle Button
+        document.getElementById('audio-toggle-btn').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            document.getElementById('audio-icon').innerHTML = soundEnabled ? '&#x1F50A;' : '&#x1F507;';
+            document.getElementById('audio-label').textContent = soundEnabled ? 'SFX On' : 'Muted';
+            if (soundEnabled) playPopSound();
+        });
+
+        // Animation Loop
+        let lastTime = performance.now();
+        function animate(now) {
+            const dt = Math.min(0.04, (now - lastTime) / 1000.0);
+            lastTime = now;
+            stepPhysics(dt);
+            renderScene();
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = function () {
+            // Render all LaTeX equations via KaTeX
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        { left: '$$', right: '$$', display: true },
+                        { left: '$', right: '$', display: false }
+                    ],
+                    throwOnError: false
+                });
+            }
+            resizeCanvas();
+            resetToInitialTrajectory();
+            updateSliderLabels();
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>
